@@ -17,9 +17,9 @@ class Bunny:
         self.rightmotor = 0
         self.position = (kwargs.get("x0"), kwargs.get("y0"))
 
-    @staticmethod
-    def start_random_position():
-        pass
+    def start_random_position(self):
+        self.leftmotor = -1
+        self.rightmotor = -1
 
     def move(self, x1, y1):
         """
