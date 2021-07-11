@@ -1,0 +1,42 @@
+GridLayout:
+    cols:2
+    rows:1
+    size: root.size
+    pos: root.pos
+    # Left Column
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint: 0.2, 1
+        padding: 10
+        spacing: 20
+        Button:
+            text: "Start"
+            id: start_button
+            pos_hint:{"top":0.5}
+            on_press: app.start_execution()
+        Button:
+            text: "Button 1"
+        Button:
+            text: "Button 2"
+    # Right Column
+    RobotCanvas:
+        size_hint: 1, 1
+        orientation: 'vertical'
+        spacing: 10
+        padding: 10
+        BoxLayout:
+            id: robots
+            robot_pos1: 267, 0
+            robot_pos2: 267, 0
+            canvas.before:
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+                    source: "board.png"
+            canvas:
+                Ellipse:
+                    size: 50, 50
+                    pos: self.robot_pos1[0], self.robot_pos1[1]
+                Ellipse:
+                    size: 50, 50
+                    pos: self.robot_pos2[0], self.robot_pos2[1]
