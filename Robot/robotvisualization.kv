@@ -10,8 +10,10 @@ GridLayout:
         padding: 10
         spacing: 20
         Button:
-            text: "Button 0"
+            text: "Start"
+            id: start_button
             pos_hint:{"top":0.5}
+            on_press: app.start_execution()
         Button:
             text: "Button 1"
         Button:
@@ -23,19 +25,9 @@ GridLayout:
         spacing: 10
         padding: 10
         BoxLayout:
-            size_hint: 1, 0.1
-            pos_hint: {"top":1}
-            orientation: 'horizontal'
-            Button:
-                text: "Button 3"
-                size_hint:1, 1
-            Button:
-                size_hint: 1, 1
-                text: "Button 4"
-            Button:
-                size_hint: 1, 1
-                text: "Button 5"
-        BoxLayout:
+            id: robots
+            robot_pos1: 267, 0
+            robot_pos2: 267, 0
             canvas.before:
                 Rectangle:
                     size: self.size
@@ -44,7 +36,11 @@ GridLayout:
             canvas:
                 Ellipse:
                     size: 50, 50
-                    pos: self.pos[0]+self.width/2, self.pos[1]+self.height/2
+                    pos: self.robot_pos1[0], self.robot_pos1[1]
+                Ellipse:
+                    size: 50, 50
+                    pos: self.robot_pos2[0], self.robot_pos2[1]
+
 
 
 
