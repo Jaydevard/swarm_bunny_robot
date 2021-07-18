@@ -30,11 +30,11 @@ class RobotCanvas(BoxLayout):
         robot_canvas_ref = self
         self.robots = {}
 
-    def createRobots(self, numRobots):
-        for i in range(numRobots):
+    def create_robots(self, num_robots):
+        for i in range(num_robots):
             self.robots[f'Robot{i}'] = BunnySim(id=i)
 
-    def defineEnvironment(self, dimension, *args):
+    def define_environment(self, dimension, *args):
         pass
 
     def update_robots(self):
