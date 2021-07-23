@@ -3,19 +3,19 @@ import time
 if __name__ == "__main__":
 
     bunny1 = Bunny(uri="bunny1")
-    print(bunny1.battery_status())
+    print(bunny1.battery_level())
     time.sleep(200)
     print("Have remained idle for 200s")
-    print(bunny1.battery_status())
+    print(bunny1.battery_level())
     print("Let's charge battery for 2 minutes!")
     bunny1.start_charging()
     time.sleep(120)
     bunny1.stop_charging()
     print("Battery has been charged")
-    print(bunny1.battery_status())
+    print(bunny1.battery_level())
     print("let's stay idle again for 2 minutes!")
     time.sleep(120)
-    print(bunny1.battery_status())
+    print(bunny1.battery_level())
     print("turning off")
     bunny1.turn_off()
 

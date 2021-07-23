@@ -211,12 +211,12 @@ class Bunny:
         self._state = self.IDLE
         self._battery.stop_charging()
 
-    def battery_status(self):
+    def battery_level(self):
         """
         Returns bunny's current battery status
         :return: None
         """
-        return self._battery.battery_percentage
+        return self._battery.battery_level
 
     @property
     def receiver(self):
@@ -276,7 +276,7 @@ class _BunnyBattery:
         """
         Calculates the battery percentage based upon the mode the bunny was, for example if it changed from moving to /
         idle, the battery has a higher depletion rate for that period of time between the two states
-        :return: None if battery is near 0.0 and is battery is not connected to bunny
+        :return: None if battery is near 0.0 and if battery is not connected to bunny
         """
         if self._is_charging:
             return
@@ -385,7 +385,7 @@ class _BunnyBattery:
             self._charge_timer.start()
 
     @property
-    def battery_percentage(self):
+    def battery_level(self):
         return self._battery_level
 
 
