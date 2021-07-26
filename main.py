@@ -1,7 +1,8 @@
-
+from gui.robot_visualization import RobotVisualization
 
 if __name__ == "__main__":
-    pass
+    Simulation = RobotVisualization()
+    Simulation.run()
 
 
 
