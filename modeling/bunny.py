@@ -23,7 +23,7 @@ class _NRF51:
         self._communication_channel = None
         self._state = "active"
         self._callback_on_receiving = callback_on_receiving
-        self.transmission_frequency = 1000000           # 1 MHz
+        self._transmission_frequency = 1000000           # 1 MHz
 
     def receive_message(self, message):
         """
@@ -34,7 +34,7 @@ class _NRF51:
         if self._state != "active":
             return
         self._callback_on_receiving(message)
-        time.sleep(1/self.transmission_frequency)
+        time.sleep(1/self._transmission_frequency)
 
     def stop_transmission(self):
         self._state = "inactive"
@@ -49,6 +49,10 @@ class _NRF51:
     @communication_channel.setter
     def communication_channel(self, channel):
         self._communication_channel = channel
+
+    @property
+    def transmission_frequency(self):
+        return self._transmission_frequency
 
 
 class _BunnyWheel:
@@ -74,6 +78,7 @@ class Bunny:
         CHARGING = "charging"
         MOVING = "moving"
         IDLE = "idle"
+        OFF = "off"
     """
     CHARGING = "charging"
     MOVING = "moving"
@@ -88,23 +93,32 @@ class Bunny:
                             "length": 0.12,
                             "surface_area": round(0.17**2*np.pi, 3),  # includes 5 cm safety margin
                             "height": 0.10
-        }
+                            }
         self._wheels = {"front": _BunnyWheel((0, 6), 3, 36.79),
                         "left":  _BunnyWheel((120, 6), 3, 36.79),
                         "right": _BunnyWheel((240, 6), 3, 36.79)
-        }
+                        }
         self._log_data = log_data
         if self._log_data:
             self._logger = _BunnyLogger(self)
         self._pos_update_callback = None
         self._state_update_callback = None
-        self._current_pos = np.array([0.0, 0.0, 0.0])       # Normalized x and y, theta
-        self._current_velocity = np.array([0.0, 0.0, 0.0])  # Vx, Vy, Vth
+        self._current_pos = np.array([[0.0], [0.0], [0.0]])       # Normalized x and y, theta
+        self._current_velocity = np.array([[0.0], [0.0], [0.0]])  # Vx, Vy, Vth
         self._received_message = None
-        self._time_step = 1 / self._receiver.transmission_frequency
+        self._pos_update_time_step = 1 / self._receiver.transmission_frequency
         self._state = self.IDLE
         self._battery = _BunnyBattery(self)
         self._block_movement = False
+        self._timers = None
+
+    def _calculate_pos(self):
+        self._move()
+        pos_update_timer = Timer(interval=self._pos_update_time_step, function=self._calculate_pos)
+        pos_update_timer.name = "pos_update_timer"
+        self._timers[pos_update_timer.name] = pos_update_timer
+        pos_update_timer.setDaemon(True)
+        pos_update_timer.start()
 
     def start_at_random_position(self):
         """
@@ -115,7 +129,7 @@ class Bunny:
         x_pos_multiplier = randint(1, 10) / 10.0
         y_pos_multiplier = randint(1, 10) / 10.0
         theta_multiplier = randint(1, 10) / 10.0
-        self._current_pos = np.array([x_pos_multiplier, y_pos_multiplier, np.pi*theta_multiplier])
+        self._current_pos = np.array([[x_pos_multiplier], [y_pos_multiplier], [np.pi*theta_multiplier]])
 
     def set_callbacks(self, pos_callback, state_callback):
         """
@@ -132,7 +146,7 @@ class Bunny:
     def _process_received_message(self, message):
         for key, value in message.items():
             if key == "velocity":
-                self._move(value)
+                self._current_velocity = value
 
     def turn_off_receiver(self):
         """
@@ -180,22 +194,18 @@ class Bunny:
             if self._state_update_callback is not None:
                 self._state_update_callback(self._uri, self._state)
 
-    def _move(self, velocity_and_time):
-        if self._state == self.DISCHARGED or self._block_movement:
+    def _move(self):
+        if self._state == self.DISCHARGED or self._block_movement or self._state == self.OFF:
             return
-        current_x_pos = self._current_pos[0]
-        current_y_pos = self._current_pos[1]
-        theta = velocity_and_time[-2]
-        time_step = velocity_and_time[-1]
-        self._current_pos[-1] = theta
-        self._state = self.MOVING
-        self._send_updates()
-        self._current_velocity = velocity_and_time[:-1]
-        time.sleep(velocity_and_time[-1])
-        self._current_pos[0] = time_step * np.cos(theta) + current_x_pos
-        self._current_pos[1] = time_step * np.sin(theta) + current_y_pos
-        self._state = self.IDLE
-        self._send_updates()
+        theta = self._current_pos[-1][0]
+        r_matrix = np.array([[np.cos(theta), -1*np.sin(theta), 0],
+                             [np.sin(theta), np.cos(theta), 0],
+                             [0, 0, 1]])
+        self._current_pos[-1][0] += self._current_velocity[-1][0] * self._pos_update_time_step  # update omega
+        x_delta = np.matmul(r_matrix, np.array([[self._current_velocity[0][0]*self._pos_update_time_step], [0], [0]]))
+        y_delta = np.matmul(r_matrix, np.array([[0], [self._current_velocity[1][0]*self._pos_update_time_step], [0]]))
+        theta_delta = np.array([0, 0, self._current_pos[-1][0]])
+        self._current_pos += x_delta + y_delta + theta_delta
 
     def set_state_to_discharged(self):
         self._state = self.DISCHARGED
