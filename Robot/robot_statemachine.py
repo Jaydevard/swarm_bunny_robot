@@ -19,7 +19,7 @@ class RobotAction:
 
 class Idle(State):
     pass
-#Are IDLE and ROAMING essentailly the same?
+
 class Roaming(State):
     pass
 
@@ -29,5 +29,3 @@ class Formation(State):
 class Charging(State):
     pass
 
-class Waiting(State):
-    pass
