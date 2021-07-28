@@ -1,12 +1,16 @@
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.dropdown import DropDown
+from kivy.uix.widget import Widget
+from kivy.animation import Animation
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
 from kivy.core.window import Window
 from kivy.uix.popup import Popup
 from kivy.graphics import Color, Ellipse, Line
 from kivy.config import Config
+from gui.simulation import BunnyShape
 import math  
 
 # Globals
@@ -76,6 +80,7 @@ class RobotCanvas(RobotVisualization, BoxLayout):
     Class RobotCanvas
     Used to initalize and display the robots
     """
+
     terminate_execution = False # Termination flag
     robot_pos = ObjectProperty(None) # Property ref from kv file
     # Default values for sim
@@ -83,16 +88,16 @@ class RobotCanvas(RobotVisualization, BoxLayout):
     v_2 = [0, 0]
     left_margin = Window.width / 5
 
-
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
         global robot_canvas_ref
         global floor_dimensions_pixels 
         robot_canvas_ref = self
         floor_dimensions_pixels = (Window.width - self.left_margin, Window.height)
+        # Create a dict for bunny shapes
 
     def draw_shape_points(self):
-        d=30
+        d = 30
         global current_shape_points
         with self.canvas:
             Color(1.,0,0)
@@ -102,7 +107,6 @@ class RobotCanvas(RobotVisualization, BoxLayout):
                     Line(points=((p.pos[0] + self.left_margin/2, p.pos[1]), (current_shape_points[0].pos[0] + self.left_margin/2, current_shape_points[0].pos[1])), width = 5)
                 else:
                     Line(points=((p.pos[0] + self.left_margin/2, p.pos[1]), (current_shape_points[i + 1].pos[0] + self.left_margin/2, current_shape_points[i+1].pos[1])), width = 5)
-
 
     def update_robots(self):
         """
@@ -151,6 +155,9 @@ class RobotCanvas(RobotVisualization, BoxLayout):
         if(widget_ids != None):
             self.update_robots()
 
+    def call_my_name(self):
+        print("RobotCanvas!")
+
 class DrawPopup(RobotVisualization, GridLayout):
     shape_points = []
     shape_lines = []
@@ -183,7 +190,6 @@ class DrawPopup(RobotVisualization, GridLayout):
         self.ids['triangle'].disabled = True
         self.ids['export'].disabled = False
         self.ids['clear'].disabled = False
-
 
     def draw_premade_shape(self, name):
         if (name == "triangle"):
@@ -255,6 +261,7 @@ class ShapeCanvas(BoxLayout):
                         Line(points=((self.last_point.pos[0] + d / 2, self.last_point.pos[1] + d / 2),
                         (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
 
+
 class InitializePopup(RobotVisualization, GridLayout):
     def __init__(self):
         super(InitializePopup, self).__init__()
@@ -268,3 +275,31 @@ class InitializePopup(RobotVisualization, GridLayout):
             self.close_initialize_popup()
         else:
             print("Invalid Dimensions")
+
+
+class Toolbar(BoxLayout):
+    _root = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        super(Toolbar, self).__init__(**kwargs)
+        self.file_drop_down = DropDown()
+        self.file_drop_down.add_widget(Button)
+
+    def show_file_menu(self, file_button):
+        canvas_pos = self._root.ids.robots.pos
+        max_width = self._root.ids.robots.width
+        max_height = self._root.ids.robots.height
+        print(canvas_pos, max_width, max_height)
+
+    def show_view_menu(self, view_button):
+        print("View has been pressed")
+
+    def show_bunny_menu(self, bunny_button):
+        print("Bunny has been pressed")
+
+    def show_simulation_menu(self, simulation_button):
+        print("Simulation has been pressed")
+
+
+
+

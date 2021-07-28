@@ -1,57 +1,144 @@
 #:import utils kivy.utils
-
-GridLayout:
-    cols:2
-    rows:1
-    size: root.size
-    pos: root.pos
-    # Left Column
+BoxLayout:
+    orientation: 'vertical'
+    # Top toolbar main boxlayout
     BoxLayout:
-        orientation: 'vertical'
-        size_hint: 0.2, 1
-        padding: 10
-        spacing: 20
-        Button:
-            text: "Start"
-            id: start_stop_button
-            pos_hint:{"top":0.5}
-            on_press: app.start_stop_execution()
-        Button:
-            text: "Draw Shape"
-            on_press: app.show_draw_popup()
-        Button:
-            text: "Initialize GUI"
-            on_press: app.show_initialize_popup()
-        Button:
-            text: "Exit"
-            on_press: app.stop()
-    # Right Column
-    RobotCanvas:
-        size_hint: 1, 1
-        orientation: 'vertical'
-        spacing: 10
-        padding: 10
+        orientation: 'horizontal'
+        size_hint: 1, 0.05
+        padding: 2
+        spacing: 5
+        # Fit toolbar to this main boxlayout
+        Toolbar:
+            id: toolbar
+            size_hint: 0.5, 1
+            _root : root  # get a reference to root
+            Button:
+                id: file_button
+                text: "[b]F[/b]ile"
+                color: 1, 1, 1, 1
+                markup: True
+                size_hint: 1, 1
+                background_color: 0, 0, 1, 1
+                on_release: self.parent.show_file_menu(self)
+                canvas.before:
+                    Color:
+                        rgba: self.background_color
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+            Button:
+                id: view_button
+                text: "[b]V[/b]iew"
+                markup: True
+                color: 1, 1, 1, 1
+                size_hint: 1, 1
+                background_color: 0, 0, 1, 1
+                on_release: self.parent.show_view_menu(self)
+                canvas.before:
+                    Color:
+                        rgba: self.background_color
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+            Button:
+                id: bunny_button
+                text: "[b]B[/b]unny"
+                markup: True
+                size_hint: 1, 1
+                background_color: 0, 0, 1, 1
+                on_release: self.parent.show_bunny_menu(self)
+                canvas.before:
+                    Color:
+                        rgba: self.background_color
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+            Button:
+                id: simulation_button
+                text: "[b]S[/b]imulation"
+                markup: True
+                size_hint: 1, 1
+                background_color: 0, 0, 1, 1
+                on_release: self.parent.show_simulation_menu(self)
+                canvas.before:
+                    Color:
+                        rgba: self.background_color
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+        # Blank BoxLayout for Toolbar
         BoxLayout:
-            id: robots
-            robot_pos1: 267, 0
-            robot_pos2: 267, 0
-            canvas.before:
-                Color
-                    rgb: utils.get_color_from_hex('#D3D3D3')
-                Rectangle:
-                    size: self.size
-                    pos: self.pos
-            canvas:
-                Color:
-                    rgb: 0, 0, 1
-                Ellipse:
-                    size: 50, 50
-                    pos: self.robot_pos1[0], self.robot_pos1[1]
-                Color: 
-                    rgb: 1, 0, 0
-                Ellipse:
-                    size: 50, 50
-                    pos: self.robot_pos2[0], self.robot_pos2[1]
+            size_hint: 1, 1
+            Label:
+                disabled: True
+                background_color: 0, 0, 0, 1
+                canvas.before:
+                    Color:
+                        rgba: self.background_color
+                    Rectangle:
+                        size: self.size
+                        pos: self.pos
+    GridLayout:
+        id: main_grid_layout
+        cols:2
+        rows:1
+        size_hint: 1, 1
+        size: root.size
+        pos: root.pos
+        # Left Column
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: 0.2, 1
+            padding: 10
+            spacing: 20
+            Button:
+                text: "Start"
+                id: start_stop_button
+                pos_hint:{"top":0.5}
+                on_press: app.start_stop_execution()
+            Button:
+                text: "Draw Shape"
+                on_press: app.show_draw_popup()
+            Button:
+                text: "Initialize GUI"
+                on_press: app.show_initialize_popup()
+            Button:
+                text: "Exit"
+                on_press: app.stop()
+        # Right Column
+        RobotCanvas:
+            size_hint: 1, 1
+            orientation: 'vertical'
+            spacing: 10
+            padding: 10
+            id: robot_canvas  # use this Id to refer to this object
+            BoxLayout:
+                id: robots
+                robot_pos1: 267, 0
+                robot_pos2: 267, 0
+                canvas.before:
+                    Color
+                        #rgb: utils.get_color_from_hex('#D3D3D3')
+                        rgb: 0, 0, 0, 1
+                    Rectangle:
+                        size: self.size
+                        pos: self.pos
+                canvas:
+                    Color:
+                        rgb: 1, 1, 1
+                    Ellipse:
+                        source: 'bugs_bunny2.png'
+                        size: 80, 80
+                        pos: self.robot_pos1[0], self.robot_pos1[1]
+
+                    Color:
+                        rgb: 1, 1, 1
+                    Ellipse:
+                        source: 'bugs_bunny2.png'
+                        size: 80, 80
+                        pos: self.robot_pos2[0], self.robot_pos2[1]
+
+
 <DrawPopup>:
     id: draw
     cols:1

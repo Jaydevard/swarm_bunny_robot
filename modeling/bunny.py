@@ -5,25 +5,28 @@ Bunny Robot Class File:
                 Simulates the robot's response to a command
                 sends data to the robot: Velocity in x and y direction
                 methods run asynchronously
-    Class State:
+    States:
                 Defines the different states for the robot
 
 """
 import datetime
 import math
+import os
 import random
 import numpy as np
 import time
 from threading import Timer
 from random import randint
+from kivy.uix.widget import Widget
+from kivy.graphics import Ellipse, Line, Bezier
 
 
 class _NRF51:
-    def __init__(self,callback_on_receiving):
+    def __init__(self, callback_on_receiving):
         self._communication_channel = None
         self._state = "active"
         self._callback_on_receiving = callback_on_receiving
-        self._transmission_frequency = 1000000           # 1 MHz
+        self._transmission_frequency = 100000.0  # 1 MHz
 
     def receive_message(self, message):
         """
@@ -34,7 +37,7 @@ class _NRF51:
         if self._state != "active":
             return
         self._callback_on_receiving(message)
-        time.sleep(1/self._transmission_frequency)
+        time.sleep(1.0 / self._transmission_frequency)
 
     def stop_transmission(self):
         self._state = "inactive"
@@ -60,19 +63,20 @@ class _BunnyWheel:
     Class for Robot Wheel: control each wheel using this class
         :
     """
+
     def __init__(self, pos, radius, max_forward_velocity):
-        self.pos = pos                                 # (angle from forward direction degree,# distance from center cm)
-        self.wheel_radius = radius                          # wheel radius cm
-        self.max_forward_velocity = max_forward_velocity    # maximum velocity in cm/s
+        self.pos = pos  # (angle from forward direction degree,# distance from center cm)
+        self.wheel_radius = radius  # wheel radius cm
+        self.max_forward_velocity = max_forward_velocity  # maximum velocity in cm/s
 
 
 class Bunny:
     """
         Bunny Class:
-        :param: channel: Assigned channel to communicate with the robot, "int"
-                         uri: Uniform Resource Identifier
-                              pos_update_callback: callback when robot changes position
-                              state_update_callback: callback when robot changes state
+        :param: : uri: Uniform Resource Identifier
+                  log_data: default is False, creates a log for bunny when set to True
+                  (OPTIONAL) pos_update_callback: callback when robot changes position
+                  (OPTIONAL) state_update_callback: callback when robot changes state
         Define the different states that the robot can be in.
         REACHED_POSITION = "reached position"
         CHARGING = "charging"
@@ -83,53 +87,65 @@ class Bunny:
     CHARGING = "charging"
     MOVING = "moving"
     IDLE = "idle"
-    DISCHARGED = "discharged"
     OFF = "off"
+    ZERO_VELOCITY = np.array([[0.0],
+                              [0.0],
+                              [0.0]])
 
-    def __init__(self, uri, log_data=False):
+    def __init__(self, uri, log_data=False, **kwargs):
         self._uri = uri
         self._receiver = _NRF51(self._process_received_message)
-        self._dimensions = {"width": 0.12,
-                            "length": 0.12,
-                            "surface_area": round(0.17**2*np.pi, 3),  # includes 5 cm safety margin
-                            "height": 0.10
+        self._dimensions = {"width": 12.0,  # cm
+                            "length": 12.0,
+                            "surface_area": round(17.0 ** 2 * np.pi, 3),  # includes 5 cm safety margin
+                            "height": 10.0
                             }
-        self._wheels = {"front": _BunnyWheel((0, 6), 3, 36.79),
-                        "left":  _BunnyWheel((120, 6), 3, 36.79),
-                        "right": _BunnyWheel((240, 6), 3, 36.79)
+        self._wheels = {"front": _BunnyWheel((0.0, 6.0), 3.0, 36.79),
+                        "left": _BunnyWheel((120.0, 6.0), 3.0, 36.79),
+                        "right": _BunnyWheel((240.0, 6.0), 3.0, 36.79)
                         }
         self._log_data = log_data
-        if self._log_data:
-            self._logger = _BunnyLogger(self)
-        self._pos_update_callback = None
-        self._state_update_callback = None
-        self._current_pos = np.array([[0.0], [0.0], [0.0]])       # Normalized x and y, theta
-        self._current_velocity = np.array([[0.0], [0.0], [0.0]])  # Vx, Vy, Vth
-        self._received_message = None
-        self._pos_update_time_step = 1 / self._receiver.transmission_frequency
+        self._pos_update_callback = kwargs.get('pos_update_callback')
+        self._state_update_callback = kwargs.get('state_update_callback')
+        self._current_pos = np.array([[0.0], [0.0], [np.pi / 2.0]])  # Normalized x and y, theta
+        self._current_pos = np.round(self._current_pos, 7)
+        self._current_velocity = self.ZERO_VELOCITY  # Vx, Vy, Vth
+        self._update_attributes_time_step = 1.0 / 1000.0
         self._state = self.IDLE
         self._battery = _BunnyBattery(self)
+        self._battery_low_flag = False
         self._block_movement = False
-        self._timers = None
+        self._timers = {}
+        self._current_time = datetime.datetime.now()
+        self._logger = _BunnyLogger(self)
+        if self._log_data:
+            self._log_bunny_data()
+        self._update_attributes()
 
-    def _calculate_pos(self):
+    def _update_attributes(self):
         self._move()
-        pos_update_timer = Timer(interval=self._pos_update_time_step, function=self._calculate_pos)
-        pos_update_timer.name = "pos_update_timer"
-        self._timers[pos_update_timer.name] = pos_update_timer
-        pos_update_timer.setDaemon(True)
-        pos_update_timer.start()
+        update_attributes_timer = Timer(interval=self._update_attributes_time_step, function=self._update_attributes)
+        update_attributes_timer.name = "update_states_timer"
+        self._timers[update_attributes_timer.name] = update_attributes_timer
+        update_attributes_timer.setDaemon(True)
+        self._current_time = datetime.datetime.now()
+        update_attributes_timer.start()
 
-    def start_at_random_position(self):
+    async def _async_update_attributes(self):
+        pass
+
+    def start_at_random_position(self, dimension: tuple):
         """
-        starts the robot at a random position
+        starts the robot at a random position,
+        :param dimension: tuple for (x, y) dimension in cm
         :return: None
         """
         random.seed()
-        x_pos_multiplier = randint(1, 10) / 10.0
-        y_pos_multiplier = randint(1, 10) / 10.0
+        x_pos_multiplier = randint(2, 8) / 10.0 * dimension[0]
+        y_pos_multiplier = randint(2, 8) / 10.0 * dimension[1]
         theta_multiplier = randint(1, 10) / 10.0
-        self._current_pos = np.array([[x_pos_multiplier], [y_pos_multiplier], [np.pi*theta_multiplier]])
+        self._current_pos = np.array([[x_pos_multiplier], [y_pos_multiplier], [np.pi * theta_multiplier]])
+        self._current_pos = np.round(self._current_pos, 7)
 
     def set_callbacks(self, pos_callback, state_callback):
         """
@@ -143,10 +159,12 @@ class Bunny:
         self._pos_update_callback = pos_callback
         self._state_update_callback = state_callback
 
-    def _process_received_message(self, message):
+    def _process_received_message(self, message: dict):
         for key, value in message.items():
             if key == "velocity":
                 self._current_velocity = value
+            elif key == "state":
+                self._state = value
 
     def turn_off_receiver(self):
         """
@@ -172,48 +190,49 @@ class Bunny:
         self._block_movement = True
         self._state = self.OFF
 
-    def _send_updates(self, _type="all"):
+    def _send_updates_to_callbacks(self, _type="all"):
         if _type == "all":
-            if self._log_data:
-                self._logger.register_pos_change()
-                self._logger.register_state_change()
-            self._battery.calculate_depletion()
             if self._pos_update_callback is not None:
                 self._pos_update_callback(self._uri, self._current_pos)
             if self._state_update_callback is not None:
                 self._state_update_callback(self._uri, self._state)
         elif _type == "pos":
-            if self._log_data:
-                self._logger.register_pos_change()
             if self._pos_update_callback is not None:
                 self._pos_update_callback(self._uri, self._current_pos)
         elif _type == "state":
-            if self._log_data:
-                self._logger.register_state_change()
-            self._battery.calculate_depletion()
             if self._state_update_callback is not None:
                 self._state_update_callback(self._uri, self._state)
 
     def _move(self):
-        if self._state == self.DISCHARGED or self._block_movement or self._state == self.OFF:
+        if self._block_movement or self._state == self.OFF or self._state == self.CHARGING:
             return
-        theta = self._current_pos[-1][0]
-        r_matrix = np.array([[np.cos(theta), -1*np.sin(theta), 0],
-                             [np.sin(theta), np.cos(theta), 0],
-                             [0, 0, 1]])
-        self._current_pos[-1][0] += self._current_velocity[-1][0] * self._pos_update_time_step  # update omega
-        x_delta = np.matmul(r_matrix, np.array([[self._current_velocity[0][0]*self._pos_update_time_step], [0], [0]]))
-        y_delta = np.matmul(r_matrix, np.array([[0], [self._current_velocity[1][0]*self._pos_update_time_step], [0]]))
-        theta_delta = np.array([0, 0, self._current_pos[-1][0]])
-        self._current_pos += x_delta + y_delta + theta_delta
+        elif np.array_equal(self.ZERO_VELOCITY, self._current_velocity):
+            self._state = self.IDLE
+            return
+        else:
+            self._state = self.MOVING
+            theta = self._current_pos[-1][0]
+            r_matrix = np.array([[np.cos(theta), -1 * np.sin(theta), 0.0],
+                                 [np.sin(theta), np.cos(theta), 0.0],
+                                 [0.0, 0.0, 1.0]])
+            t_diff = (datetime.datetime.now() - self._current_time).total_seconds()
+            self._current_pos[-1][0] += self._current_velocity[-1][0] * self._update_attributes_time_step
+            x_delta = np.matmul(r_matrix, np.array([[self._current_velocity[0][0] * t_diff],
+                                                   [0.0],
+                                                   [0.0]]))
+            y_delta = np.matmul(r_matrix, np.array([[0],
+                                                   [self._current_velocity[1][0] * t_diff],
+                                                   [0.0]]))
+            self._current_pos += x_delta + y_delta
+            self._current_pos = np.round(self._current_pos, 7)
 
     def set_state_to_discharged(self):
-        self._state = self.DISCHARGED
-        self._send_updates(_type="state")
+        self._battery_low_flag = True
 
     def start_charging(self):
         """start the charge routine for the battery"""
         self._state = self.CHARGING
+        self._current_velocity = self.ZERO_VELOCITY
         self._battery.start_charging()
 
     def stop_charging(self):
@@ -223,10 +242,27 @@ class Bunny:
 
     def battery_level(self):
         """
-        Returns bunny's current battery status
+        Returns bunny's current battery level
         :return: None
         """
         return self._battery.battery_level
+
+    def stop_bunny_from_moving(self):
+        """
+        stops bunny from moving, sets its state to IDLE
+        :return: None
+        """
+        self._block_movement = True
+        self._current_velocity = self.ZERO_VELOCITY
+        self._state = self.IDLE
+
+    def _log_bunny_data(self):
+        self._logger.log_data()
+        log_data_timer = Timer(interval=0.01, function=self._log_bunny_data)
+        log_data_timer.name = "log_data_timer"
+        self._timers[log_data_timer.name] = log_data_timer
+        log_data_timer.setDaemon(True)
+        log_data_timer.start()
 
     @property
     def receiver(self):
@@ -245,6 +281,10 @@ class Bunny:
         return self._uri
 
     @property
+    def battery_low_flag(self):
+        return self._battery_low_flag
+
+    @property
     def current_velocity(self):
         return self._current_velocity
 
@@ -252,102 +292,85 @@ class Bunny:
 class _BunnyLogger:
     def __init__(self, robot):
         self._robot = robot
+        self._file_path = os.getcwd() + f"//{self._robot.uri}.csv"
 
-    def register_pos_change(self):
-        robot_pos = self._robot.current_pos
-        if self._robot.state == self._robot.IDLE:
-            print(f"{self._robot.uri} changed position, {robot_pos} {time.strftime('%H:%M:%S')}")
-
-    def register_state_change(self):
-        robot_state = self._robot.state
-        print(f"{self._robot.uri} changed state, state is now: {robot_state} {time.strftime('%H:%M:%S')}")
+    def log_data(self):
+        with open(self._file_path, "a") as log_file:
+            log_file.write(f"{self._robot.current_pos[0][0]}, {self._robot.current_pos[1][0]}, "
+                           f"{self._robot.current_pos[2][0]}, "
+                           f"{self._robot.battery_level()}\n")
+        log_file.close()
 
 
 class _BunnyBattery:
     def __init__(self, bunny):
         self._bunny = bunny
-        self._is_working = True
-        self._idle_down_time_timer = None
+        self._is_delivering_power = True
         self._minimum_battery_level = 0.2
         self._battery_level = 1.0
+        self._battery_level_depletion_calculation_timer_interval = 1.0 / 10.0
+        self._battery_level_depletion_calculation_timer = None
         self._previous_bunny_state = self._bunny.state
-        self._start_time_in_moving_state = None
-        self._start_time_in_idle_state = datetime.datetime.now()
-        self._down_time_evaluation_handle = False
-        self._idle_timer_first_call = True
-        self._charge_timer_first_call = True
         self._is_charging = False
-        self._charge_timer = None
         self._charge_routine_start_time = None
+        self._charge_timer_first_call = True
         self._initial_battery_level_charge_time_buffer = 0.0
-        self._evaluate_idle_down_time()
+        self._charge_timer = None
+        self._calculate_depletion()
 
-    def calculate_depletion(self):
-        """
-        Calculates the battery percentage based upon the mode the bunny was, for example if it changed from moving to /
-        idle, the battery has a higher depletion rate for that period of time between the two states
-        :return: None if battery is near 0.0 and if battery is not connected to bunny
-        """
-        if self._is_charging:
+    def _calculate_depletion(self):
+        current_bunny_state = self._bunny.state
+        if not self._is_delivering_power:
             return
-        elif 0 < self._battery_level < 0.05 or not self._is_working:
+        # keep the battery level constant when battery is near zero or charging
+        elif 0 <= self._battery_level <= 0.05 or self._is_charging:
+            self._previous_bunny_state = current_bunny_state
+            self._battery_level_update_timer = Timer(interval=self._battery_level_depletion_calculation_timer_interval,
+                                                     function=self._calculate_depletion)
+            self._battery_level_update_timer.setName("battery_level_update_timer")
+            self._battery_level_update_timer.start()
             return
-        elif self._bunny.state == self._bunny.MOVING and self._previous_bunny_state == self._bunny.IDLE:
-            self._start_time_in_moving_state = datetime.datetime.now()
-            depletion_rate = 372.8  # battery goes to 0.2 in 6 minutes when moving
-            idle_state_end_time = self._start_time_in_moving_state
-            t_diff = self._start_time_in_idle_state - idle_state_end_time
-            t_diff_in_s = t_diff.total_seconds()
-            while self._down_time_evaluation_handle:
-                time.sleep(1e-6)
-            self._battery_level *= round(math.exp(-t_diff_in_s/depletion_rate), 5)
-            self._previous_bunny_state = self._bunny.state
-            if self._battery_level <= 0.2:
-                self._send_battery_discharged_alert()
+        else:
+            # if bunny is still idle or changed state from IDLE to MOVING
+            if self._previous_bunny_state == self._bunny.IDLE and current_bunny_state == self._bunny.IDLE or \
+                    self._previous_bunny_state == self._bunny.IDLE and current_bunny_state == self._bunny.MOVING:
+                self._down_time_evaluation_handle = True
+                self._battery_level *= math.exp(-self._battery_level_depletion_calculation_timer_interval / 372.8)
+                self._battery_level = round(self._battery_level, 5)
+                self._down_time_evaluation_handle = False
 
-        elif self._bunny.state == self._bunny.IDLE and self._previous_bunny_state == self._bunny.MOVING:
-            self._start_time_in_idle_state = datetime.datetime.now()
-            depletion_rate = 223.68   # battery goes to 0.2 in 10 minutes when idle
-            t_diff = self._start_time_in_idle_state - self._start_time_in_moving_state
-            t_diff_in_s = t_diff.total_seconds()
-            self._battery_level *= round(math.exp(-t_diff_in_s/depletion_rate), 5)
-            self._idle_timer_first_call = True
-            self._evaluate_idle_down_time()
-            self._previous_bunny_state = self._bunny.state
-            if self._battery_level <= 0.2:
-                self._send_battery_discharged_alert()
-
-    def _evaluate_idle_down_time(self):
-        interval = 0.01
-        if self._is_charging or (0 < self._battery_level < 0.05 or not self._is_working):
-            return
-        if self._battery_level <= 0.2:
-            self._send_battery_discharged_alert()
-        if self._idle_timer_first_call:
-            self._idle_down_time_timer = Timer(interval=interval, function=self._evaluate_idle_down_time)
-            self._idle_down_time_timer.start()
-            self._idle_timer_first_call = False
-            return
-        self._down_time_evaluation_handle = True
-        self._battery_level *= round(math.exp(-interval/ 372.8), 5)
-        self._down_time_evaluation_handle = False
-        if self._bunny.state == self._bunny.IDLE and self._battery_level > 0.2:
-            self._idle_down_time_timer = Timer(interval=interval, function=self._evaluate_idle_down_time)
-            self._idle_down_time_timer.start()
+            # if bunny was moving and now is idle or is still moving
+            if self._previous_bunny_state == self._bunny.MOVING and self._bunny.state == self._bunny.IDLE or \
+                    self._previous_bunny_state == self._bunny.MOVING and self._bunny.state == self._bunny.MOVING:
+                self._down_time_evaluation_handle = True
+                self._battery_level *= math.exp(-self._battery_level_depletion_calculation_timer_interval / 223.68)
+                self._battery_level = round(self._battery_level, 5)
+                self._down_time_evaluation_handle = False
+            if self._battery_level <= self._minimum_battery_level:
+                self._set_battery_discharged_flag()
+            self._previous_bunny_state = current_bunny_state
+            self._battery_level_update_timer = Timer(interval=self._battery_level_depletion_calculation_timer_interval,
+                                                     function=self._calculate_depletion)
+            self._battery_level_update_timer.setName("battery_level_update_timer")
+            self._battery_level_update_timer.start()
 
     def cut_power_from_battery(self):
         """
         Keeps the battery percentage constant
+        :return: None
+        """
+        self._is_delivering_power = False
+
+    def turn_power_on(self):
+        """
+        Turns the power back on
         :return:
         """
-        self._is_working = False
+        self._is_delivering_power = True
+        self._calculate_depletion()
 
-    def _send_battery_discharged_alert(self):
-        try:
-            self._idle_down_time_timer.cancel()
-        except Exception as e:
-            pass
-        self._bunny.set_state_to_discharged()
+    def _set_battery_discharged_flag(self):
+        self._bunny.battery_low_flag = True
 
     def start_charging(self):
         """
@@ -358,9 +381,9 @@ class _BunnyBattery:
             return
         self._is_charging = True
         try:
-            self._idle_down_time_timer.cancel()
+            self._battery_level_depletion_calculation_timer.cancel()
             self._charge_timer.cancel()
-        except Exception:
+        except Exception as e:
             pass
         self._set_charge_routine()
         self._charge_timer_first_call = True
@@ -372,8 +395,6 @@ class _BunnyBattery:
         """
         if self._is_charging:
             self._is_charging = False
-            self._idle_timer_first_call = True
-            self._evaluate_idle_down_time()
 
     def _set_charge_routine(self):
         if self._battery_level >= 0.98:
@@ -386,16 +407,32 @@ class _BunnyBattery:
             self._charge_timer_first_call = False
             return
         elif self._is_charging:
-            t_diff = datetime.datetime.now() - self._charge_routine_start_time    # time elapsed
-            t_diff = t_diff.total_seconds()                                       # time to seconds
+            t_diff = datetime.datetime.now() - self._charge_routine_start_time  # time elapsed
+            t_diff = t_diff.total_seconds()  # time to seconds
             t_end = t_diff + self._initial_battery_level_charge_time_buffer
             self._initial_battery_level_charge_time_buffer = t_end
-            self._battery_level = round((1 - math.exp(-0.00652*t_end)), 5)
+            self._battery_level = round((1 - math.exp(-0.00652 * t_end)), 5)
             self._charge_timer = Timer(interval=0.01, function=self._set_charge_routine)
             self._charge_timer.start()
 
     @property
     def battery_level(self):
         return self._battery_level
+
+
+class BunnyModel(Widget):
+    def __init__(self, bunny: Bunny, **kwargs):
+        super(BunnyModel, self).__init__(**kwargs)
+        self._bunny = bunny
+        self._scale_factor = 1.0
+        with self.canvas.before:
+                self._shape = Ellipsis()
+
+    def remove_widget(self, widget):
+        self._bunny.turn_off()
+        del widget
+
+    def update_pos(self, pos: tuple):
+        self.pos = self._bunny.current_pos / self._scale_factor
 
 
