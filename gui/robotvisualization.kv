@@ -10,7 +10,7 @@ GridLayout:
         orientation: 'vertical'
         size_hint: 0.2, 1
         padding: 10
-        spacing: 20
+        spacing: 10
         Button:
             text: "Start"
             id: start_stop_button
@@ -29,12 +29,10 @@ GridLayout:
     RobotCanvas:
         size_hint: 1, 1
         orientation: 'vertical'
-        spacing: 10
-        padding: 10
         BoxLayout:
             id: robots
-            robot_pos1: 267, 0
-            robot_pos2: 267, 0
+            robot_pos1: 133, 0
+            robot_pos2: 133, 0
             canvas.before:
                 Color
                     rgb: utils.get_color_from_hex('#D3D3D3')
@@ -45,12 +43,12 @@ GridLayout:
                 Color:
                     rgb: 0, 0, 1
                 Ellipse:
-                    size: 50, 50
+                    size: 30, 30
                     pos: self.robot_pos1[0], self.robot_pos1[1]
                 Color: 
                     rgb: 1, 0, 0
                 Ellipse:
-                    size: 50, 50
+                    size: 30, 30
                     pos: self.robot_pos2[0], self.robot_pos2[1]
 <DrawPopup>:
     id: draw
