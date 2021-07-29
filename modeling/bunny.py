@@ -21,6 +21,7 @@ from kivy.uix.widget import Widget
 from kivy.graphics import Ellipse, Line, Bezier
 
 
+
 class _NRF51:
     def __init__(self, callback_on_receiving):
         self._communication_channel = None
@@ -420,19 +421,5 @@ class _BunnyBattery:
         return self._battery_level
 
 
-class BunnyModel(Widget):
-    def __init__(self, bunny: Bunny, **kwargs):
-        super(BunnyModel, self).__init__(**kwargs)
-        self._bunny = bunny
-        self._scale_factor = 1.0
-        with self.canvas.before:
-                self._shape = Ellipsis()
-
-    def remove_widget(self, widget):
-        self._bunny.turn_off()
-        del widget
-
-    def update_pos(self, pos: tuple):
-        self.pos = self._bunny.current_pos / self._scale_factor
 
 
