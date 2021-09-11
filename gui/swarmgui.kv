@@ -85,26 +85,99 @@ BoxLayout:
         size_hint: 1, 1
         size: root.size
         pos: root.pos
+        Splitter:
+            sizable_from: 'right'
+            strip_size: 5
         # Left Column
-        BoxLayout:
-            orientation: 'vertical'
-            size_hint: 0.2, 1
-            padding: 10
-            spacing: 20
-            Button:
-                text: "Start"
-                id: start_stop_button
-                pos_hint:{"top":0.5}
-                on_press: app.start_stop_execution()
-            Button:
-                text: "Draw Shape"
-                on_press: app.show_draw_popup()
-            Button:
-                text: "Initialize GUI"
-                on_press: app.show_initialize_popup()
-            Button:
-                text: "Exit"
-                on_press: app.stop()
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint: 0.6, 1
+                pos_hint: {"left": 1}
+                padding: 5
+                spacing: 5
+                # Create the Tabs
+                TabbedPanel:
+                    do_default_tab: False
+                    tab_width: self.width/3
+                    pos_hint:{"left": 1}
+                    background_color: (255, 255, 255, 1.0)
+                    TabbedPanelItem:
+                        text: "Environment"
+                        background_color: 0, 1, 0.4, 1
+                        BoxLayout:
+                            size_hint: 1, 1
+                            Button:
+                                text: "Hello"
+                    TabbedPanelItem:
+                        text: "Connections"
+                        # Main Connections Layout
+                        BoxLayout:
+                            size_hint: 1, 1
+                            orientation: "vertical"
+                            # Top Layout for Radio
+                            BoxLayout:
+                                size_hint: 1, 0.3
+                                orientation: "horizontal"
+                                pos_hint: {"top": 1}
+
+                                Image:
+                                    size_hint: 0.2, 1
+                                    source: "images//wifi//wifi_off.png"
+                                    size: 20, 20
+                                    allow_stretch: True
+                                    keep_ratio: True
+                                    pos_hint: {"left":1}
+
+                                BoxLayout:
+                                    size_hint: 1, 1
+                                    orientation: "horizontal"
+                                    Spinner:
+                                        size_hint: 1, 1
+                                    GridLayout:
+                                        rows: 3
+                                        cols: 1
+                                        size_hint: 1, 1
+                                        Button:
+                                            text: "Search"
+                                            size_hint: 1, 1
+                                        Button:
+                                            text: "Connect"
+                                            size_hint: 1, 1
+
+                            # Bottom Layout for Connections to Robot
+                            BoxLayout:
+                                size_hint: 1, 1
+                                pos_hint: {"top": 1}
+
+                    TabbedPanelItem:
+                        text: "Choreography"
+                        BoxLayout:
+                            size_hint: 1, 1
+                            orientation: 'vertical'
+                            canvas.before:
+                                Color:
+                                    rgb: 0, 0, 0, 1
+
+
+    #        BoxLayout:
+    #            orientation: 'vertical'
+    #            size_hint: 0.2, 1
+    #            padding: 10
+    #            spacing: 20
+    #            Button:
+    #                text: "Start"
+    #                id: start_stop_button
+    #                pos_hint:{"top":0.5}
+    #                on_press: app.start_stop_execution()
+    #            Button:
+    #                text: "Draw Shape"
+    #                on_press: app.show_draw_popup()
+    #            Button:
+    #                text: "Initialize GUI"
+    #                on_press: app.show_initialize_popup()
+    #            Button:
+    #                text: "Exit"
+    #                on_press: app.stop()
         # Right Column
         RobotCanvas:
             size_hint: 1, 1
@@ -119,7 +192,7 @@ BoxLayout:
                 canvas.before:
                     Color
                         #rgb: utils.get_color_from_hex('#D3D3D3')
-                        rgb: 0, 0, 0, 1
+                        rgb: 0, 0, 1, 1
                     Rectangle:
                         size: self.size
                         pos: self.pos
@@ -129,14 +202,14 @@ BoxLayout:
                     Ellipse:
                         source: 'bugs_bunny2.png'
                         size: 80, 80
-                        pos: self.robot_pos1[0], self.robot_pos1[1]
+                        pos: self.robot_pos1[1], self.robot_pos1[1]
 
                     Color:
                         rgb: 1, 1, 1
                     Ellipse:
                         source: 'bugs_bunny2.png'
                         size: 80, 80
-                        pos: self.robot_pos2[0], self.robot_pos2[1]
+                        pos: self.robot_pos2[1], self.robot_pos2[1]
 
 <DrawPopup>:
     id: draw

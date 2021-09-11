@@ -22,6 +22,12 @@ class BunnyShape(Ellipse):
     def on_start(self):
         pass
 
+    if __name__ == "__main__":
+        pass
+
+
+
+
 
 
 

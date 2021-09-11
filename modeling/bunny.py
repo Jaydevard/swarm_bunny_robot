@@ -7,8 +7,8 @@ Bunny Robot Class File:
                 methods run asynchronously
     States:
                 Defines the different states for the robot
-
 """
+
 import datetime
 import math
 import os
@@ -19,7 +19,6 @@ from threading import Timer
 from random import randint
 from kivy.uix.widget import Widget
 from kivy.graphics import Ellipse, Line, Bezier
-
 
 
 class _NRF51:
@@ -84,6 +83,7 @@ class Bunny:
         MOVING = "moving"
         IDLE = "idle"
         OFF = "off"
+        ZERO_VELOCITY = np.array([0.0], [0.0], [0.0])
     """
     CHARGING = "charging"
     MOVING = "moving"
