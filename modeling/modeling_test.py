@@ -1,36 +1,55 @@
 import numpy as np
-
+from network import Network
 from bunny import Bunny
 import time
-if __name__ == "__main__":
-    pass
 
-    # bunny1 = Bunny(uri="bunny1")
-    # print(bunny1.battery_level())
-    # time.sleep(200)
-    # print("Have remained idle for 200s")
-    # print(bunny1.battery_level())
-    # print("Let's charge battery for 2 minutes!")
-    # bunny1.start_charging()
-    # time.sleep(120)
-    # bunny1.stop_charging()
-    # print("Battery has been charged")
-    # print(bunny1.battery_level())
-    # print("let's stay idle again for 2 minutes!")
-    # time.sleep(120)
-    # print(bunny1.battery_level())
-    # print("turning off")
-    # bunny1.turn_off()
-    a = np.array([[1], [2], [3]])
-    print(a[1][0])
-    # bunnies = [Bunny(uri=f"bunny{index}", log_data=True) for index in range(1, 5, 1)]
-    # space = Space()
-    # space.add_robot_to_space(*bunnies)
-    # nt1 = Network(_id="network1")
-    # space.add_network_to_space(nt1)
-    # transmitters = nt1.add_robots_to_network(*bunnies)
-    # message = {"velocity": np.array([0.5, 0.5, 0.785, 0.2])}
-    # threads = [transmitter.request_message_thread(message) for transmitter in transmitters]
+
+def send_velocity_command(transmitters, velocity: dict):
+    if type(transmitters) is list:
+        threads = [transmitter.request_message_thread(velocity) for transmitter in transmitters]
+        [thread.start() for thread in threads]
+    else:
+        t1 = transmitters.request_message_thread(velocity)
+        t1.start()
+
+
+if __name__ == "__main__":
+    bunnies = [Bunny(f"bunny{i}", log_data=True) for i in range(1, 4, 1)]
+    nt1 = Network(_id="nt1")
+    transmitters = nt1.add_robots_to_network(*bunnies)
+    velocity = {"velocity": np.array([[5.0],
+                                      [0.0],
+                                      [0.0]])}    # Vx, Vy, omega (Robot Frame)
+    send_velocity_command(transmitters, velocity)
+    # moving forward
+    time.sleep(3)
+    velocity = {"velocity": np.array([[0.0],
+                                      [0.0],
+                                      [0.5]])}
+    send_velocity_command(transmitters[0], velocity)
+    # bunny1 makes an anticlockwise turn while other bunnies keep moving forward
+    time.sleep(2)
+    velocity = {"velocity": np.array([[0.0],
+                                      [5.0],
+                                      [0.0]])}
+    send_velocity_command(transmitters, velocity)
+    # all bunnies turn left
+    time.sleep(6)
+    velocity = {"velocity": np.array([[0.0],
+                                      [0.0],
+                                      [0.0]])}
+    # bunnies stop moving for 10s
+    send_velocity_command(transmitters, velocity)
+    time.sleep(10)
+    # charge the batteries of bunny for 5 seconds
+    [bunny.start_charging() for bunny in bunnies]
+    time.sleep(5)
+    # let bunny stay idle for 5 s
+    [bunny.stop_charging() for bunny in bunnies]
+    time.sleep(5)
+    # turn off the bunny
+    [bunny.turn_off() for bunny in bunnies]
+
 
 
 

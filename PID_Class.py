@@ -60,7 +60,6 @@ class PID:
         e1 = 0
         error = 1  # dummy error
 
-
         #PID LOOP
         while error != 0:
             e2 = e1
@@ -94,8 +93,7 @@ class PID:
             velocity_y = np.append(velocity_y,(round(velocity* math.sin(theta),2)))
             omega = np.append(omega, 0)
 
-
-        velocity_x = np.append(velocity_x,0)
-        velocity_y = np.append(velocity_y,0)
+        velocity_x = np.append(velocity_x, 0)
+        velocity_y = np.append(velocity_y, 0)
         omega = np.append(omega,0)
         #print(trajectory_x[100])

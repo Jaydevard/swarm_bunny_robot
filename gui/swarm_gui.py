@@ -1,12 +1,22 @@
+import kivy.clock
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.dropdown import DropDown
+from kivy.uix.widget import Widget
+from kivy.animation import Animation
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
 from kivy.core.window import Window
 from kivy.uix.popup import Popup
 from kivy.graphics import Color, Ellipse, Line
 from kivy.config import Config
+from kivy.uix.button import Button
+from kivy.uix.tabbedpanel import TabbedPanel
+from utils import InformationPopup
+from gui.simulation import BunnyShape
+
+
 import math  
 
 # Globals
@@ -16,13 +26,14 @@ popup_widget_ids = None
 robot_canvas_ref = None
 custom_mode_on = False
 current_shape_points = []
-floor_dimensions_meters = (10, 10) # Default
+floor_dimensions_meters = (10, 10)  # Default
 floor_dimensions_pixels = ()
 
-class RobotVisualization(App):
+
+class SwarmGUI(App):
     """
     RobotVisualization Class
-    This is where we instatiate the GUI
+    This is where we instantiate the GUI
     Main controls
     """
     popupWindow = Popup(title="Draw a new shape")
@@ -71,11 +82,12 @@ class RobotVisualization(App):
         self.initPopupWindow.dismiss()
 
 
-class RobotCanvas(RobotVisualization, BoxLayout):
+class RobotCanvas(SwarmGUI, BoxLayout):
     """
     Class RobotCanvas
     Used to initalize and display the robots
     """
+
     terminate_execution = False # Termination flag
     robot_pos = ObjectProperty(None) # Property ref from kv file
     # Default values for sim
@@ -83,16 +95,16 @@ class RobotCanvas(RobotVisualization, BoxLayout):
     v_2 = [0, 0]
     left_margin = Window.width / 6
 
-
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
         global robot_canvas_ref
         global floor_dimensions_pixels 
         robot_canvas_ref = self
         floor_dimensions_pixels = (Window.width - self.left_margin, Window.height)
+        # Create a dict for bunny shapes
 
     def draw_shape_points(self):
-        d=20
+        d = 30
         global current_shape_points
         with self.canvas:
             Color(1.,0,0)
@@ -102,7 +114,6 @@ class RobotCanvas(RobotVisualization, BoxLayout):
                     Line(points=((p.pos[0] + self.left_margin/2, p.pos[1]), (current_shape_points[0].pos[0] + self.left_margin/2, current_shape_points[0].pos[1])), width = 3)
                 else:
                     Line(points=((p.pos[0] + self.left_margin/2, p.pos[1]), (current_shape_points[i + 1].pos[0] + self.left_margin/2, current_shape_points[i+1].pos[1])), width = 3)
-
 
     def update_robots(self):
         """
@@ -151,7 +162,11 @@ class RobotCanvas(RobotVisualization, BoxLayout):
         if(widget_ids != None):
             self.update_robots()
 
-class DrawPopup(RobotVisualization, GridLayout):
+    def call_my_name(self):
+        print("RobotCanvas!")
+
+
+class DrawPopup(SwarmGUI, GridLayout):
     shape_points = []
     shape_lines = []
     triangle = ((250,150), (550, 150), (400, 450))
@@ -184,7 +199,6 @@ class DrawPopup(RobotVisualization, GridLayout):
         self.ids['export'].disabled = False
         self.ids['clear'].disabled = False
 
-
     def draw_premade_shape(self, name):
         if (name == "triangle"):
                 shape = self.triangle
@@ -192,8 +206,8 @@ class DrawPopup(RobotVisualization, GridLayout):
                 shape = self.square
 
         with self.canvas:
-            Color(0,1,0)
-            d=20
+            Color(0, 1, 0)
+            d = 20
             for i,p in enumerate(shape):
                 e = Ellipse(pos=(p[0], p[1]), size=(d, d))
                 self.shape_points.append(e)
@@ -255,7 +269,8 @@ class ShapeCanvas(BoxLayout):
                         Line(points=((self.last_point.pos[0] + d / 2, self.last_point.pos[1] + d / 2),
                         (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
 
-class InitializePopup(RobotVisualization, GridLayout):
+
+class InitializePopup(SwarmGUI, GridLayout):
     def __init__(self):
         super(InitializePopup, self).__init__()
 
@@ -268,3 +283,96 @@ class InitializePopup(RobotVisualization, GridLayout):
             self.close_initialize_popup()
         else:
             print("Invalid Dimensions")
+
+
+class Toolbar(BoxLayout):
+    """
+    Toolbar Layout: needs to be completed
+    left as a template for now
+    """
+    _root = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        super(Toolbar, self).__init__(**kwargs)
+        self._drop_down_buttons = {}
+        # Create 4 drop down menus
+        self._file_drop_down = DropDown()
+        self._view_drop_down = DropDown()
+        self._bunny_drop_down = DropDown()
+        self._simulation_drop_down = DropDown()
+        # Create the file menu buttons and add callback
+        # leaving this blank for now
+
+        # Create the view menu buttons and add callback
+        # show bunny logs button
+        show_bunny_logs_button = Button(text='show bunny logs',
+                                        size_hint=(1, 1),
+                                        height=50)
+        show_bunny_logs_button.bind(on_release=self._show_bunny_logs)
+        self._drop_down_buttons['show_bunny_logs'] = show_bunny_logs_button
+        # add buttons to dropdown
+        self._view_drop_down.add_widget(show_bunny_logs_button)
+
+        # Create the bunny menu buttons and add callback
+        # add bunny to simulation
+        add_bunny_button = Button(text='add bunny',
+                                  size_hint=(1, 1),
+                                  height=50)
+        add_bunny_button.bind(on_release=self._add_bunny_to_canvas)
+        self._drop_down_buttons['add_bunny'] = add_bunny_button
+        # add buttons to the dropdown menu
+        self._bunny_drop_down.add_widget(add_bunny_button)
+
+        # Create the simulation menu buttons and add callback
+        # start simulation
+        start_simulation_button = Button(text='Start Simulation',
+                                         size_hint=(1, 1),
+                                         height=50)
+        start_simulation_button.bind(on_release=self._start_simulation)
+        self._drop_down_buttons['start_simulation'] = start_simulation_button
+        # add buttons to dropdown menu
+        self._simulation_drop_down.add_widget(start_simulation_button)
+
+    def _show_bunny_logs(self):
+        """
+        called when 'show bunny logs' button is pressed
+        :return: None
+        """
+        pass
+
+    def _add_bunny_to_canvas(self):
+        """
+        called when 'add bunny' button is pressed
+        :return: None
+        """
+    def _start_simulation(self):
+        """
+        Starts the simulation
+        :return:None
+        """
+        pass
+
+    def show_file_menu(self, file_button):
+        canvas_pos = self._root.ids.robots.pos
+        max_width = self._root.ids.robots.width
+        max_height = self._root.ids.robots.height
+        print("canvas pos:",
+              canvas_pos, "width:",
+              max_width, "height:",
+              max_height)
+
+    def show_view_menu(self, view_button):
+        # keep it blank for now
+        pass
+
+    def show_bunny_menu(self, bunny_button):
+        # keep it blank for now
+        pass
+
+    def show_simulation_menu(self, simulation_button):
+        # keep it blank for now
+        pass
+
+
+
+

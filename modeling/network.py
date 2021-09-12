@@ -109,7 +109,7 @@ class Network:
             allocated_channel = _Channel(channel_id=channel_id,
                                          transmitter=dedicated_transmitter,
                                          receiver=dedicated_receiver,
-                                         latency=1,
+                                         latency=1e-6,
                                          snr=None)
             dedicated_transmitter.communication_channel = allocated_channel
             dedicated_receiver.communication_channel = allocated_channel

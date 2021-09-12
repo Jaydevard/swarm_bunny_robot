@@ -1,5 +1,4 @@
-# Swarm Bunny Robot
-Virtual Network to simulate connection to robot
-Capstone Project
-created on 15th of June 2021
+## Swarm Bunny Robot 
+# Description 
+A toolbar has added to the gui to facilitate development and integration with the simulation and the user's input.
 
