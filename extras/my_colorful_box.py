@@ -12,7 +12,6 @@ from kivy.animation import Animation
 from kivy.graphics import Line, Rectangle, Ellipse
 from kivy.graphics import Color
 from kivy.graphics.instructions import InstructionGroup
-from kivy.core.image import Image
 import random
 
 

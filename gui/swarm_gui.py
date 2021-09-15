@@ -1,3 +1,5 @@
+import random
+
 import kivy.clock
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
@@ -7,15 +9,20 @@ from kivy.uix.widget import Widget
 from kivy.animation import Animation
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
+from kivy.properties import StringProperty
 from kivy.core.window import Window
 from kivy.uix.popup import Popup
 from kivy.graphics import Color, Ellipse, Line
 from kivy.config import Config
 from kivy.uix.button import Button
+from kivy.uix.label import Label
 from kivy.uix.tabbedpanel import TabbedPanel
+from kivy.uix.image import Image
+from kivy.uix.spinner import Spinner
+
 from utils import InformationPopup
 from gui.simulation import BunnyShape
-
+from communication.network import WirelessNetwork
 
 import math  
 
@@ -94,7 +101,7 @@ class RobotCanvas(SwarmGUI, BoxLayout):
     v_1 = [0, 0]
     v_2 = [0, 0]
     left_margin = Window.width / 6
-
+    
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
         global robot_canvas_ref
@@ -374,5 +381,31 @@ class Toolbar(BoxLayout):
         pass
 
 
+class Connections(BoxLayout, WirelessNetwork):
+    connect_button = ObjectProperty()
+    search_button = ObjectProperty()
+    wifi_image = ObjectProperty()
+    search_and_connect_box = ObjectProperty()
+    radio_selection = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        super(Connections, self).__init__(**kwargs)
+        self._radio_dongle = self.search_for_radio_dongle()
+        self._wifi_image_sources = {"on": "images\\wifi\\wifi_on.png",
+                                    "off": "images\\wifi\\wifi_off.png"}
+        self._selected_radio_dongle = None
+
+    def search_button_press(self):
+        self.search_button.text = "[b][i]Searching...[/i][/b]"
+
+    def update_radio_dongle_selection(self, selected_radio):
+        print(selected_radio)
+        self._selected_radio_dongle = selected_radio
+
+    def connect_button_press(self):
+        if self._selected_radio_dongle is None:
+            InformationPopup(_type="e",
+                             _message="No radio selected or available").open()
+        self.wifi_image.source = self._wifi_image_sources["on"]
 
 
