@@ -3,26 +3,20 @@ import random
 import kivy.clock
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.gridlayout import GridLayout
+from kivy.uix.scatterlayout import ScatterLayout
 from kivy.uix.dropdown import DropDown
-from kivy.uix.widget import Widget
-from kivy.animation import Animation
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
 from kivy.properties import StringProperty
 from kivy.core.window import Window
-from kivy.uix.popup import Popup
 from kivy.graphics import Color, Ellipse, Line
 from kivy.config import Config
 from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.tabbedpanel import TabbedPanel
-from kivy.uix.image import Image
-from kivy.uix.spinner import Spinner
 
 from utils import InformationPopup
 from gui.simulation import BunnyShape
 from communication.network import WirelessNetwork
+
 
 import math  
 
@@ -43,8 +37,6 @@ class SwarmGUI(App):
     This is where we instantiate the GUI
     Main controls
     """
-    popupWindow = Popup(title="Draw a new shape")
-    initPopupWindow = Popup(title="Initialize GUI Dimensions", size_hint=(None, None), size=(300,200))
 
     def build(self):
         # Wait till the gui inits to pull in the IDs
@@ -70,38 +62,29 @@ class SwarmGUI(App):
         global widget_ids
         widget_ids = self.root.ids
 
-    def show_draw_popup(self):
-        self.show = DrawPopup()
-        self.popupWindow.content = self.show
-        self.popupWindow.size = floor_dimensions_pixels
-        self.popupWindow.size_hint = (None, None)
-        self.popupWindow.open()
-
-    def show_initialize_popup(self):
-        self.show = InitializePopup()
-        self.initPopupWindow.content = self.show
-        self.initPopupWindow.open()
-
-    def close_draw_popup(self):
-        self.popupWindow.dismiss()
-    
-    def close_initialize_popup(self):
-        self.initPopupWindow.dismiss()
-
-
 class RobotCanvas(SwarmGUI, BoxLayout):
     """
     Class RobotCanvas
     Used to initalize and display the robots
     """
-
+    
     terminate_execution = False # Termination flag
     robot_pos = ObjectProperty(None) # Property ref from kv file
     # Default values for sim
     v_1 = [0, 0]
     v_2 = [0, 0]
     left_margin = Window.width / 6
-    
+    current_point = None
+    last_point = None
+    shape_points = []
+    shape_lines = []
+    can_draw_more = True
+    custom_mode_on = False
+    triangle_custom_mode_on = False
+
+    triangle = ((500,150), (800, 150), (650, 450))
+    square = ((250,150), (550, 150), (550, 450), (250, 450))
+
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
         global robot_canvas_ref
@@ -110,17 +93,102 @@ class RobotCanvas(SwarmGUI, BoxLayout):
         floor_dimensions_pixels = (Window.width - self.left_margin, Window.height)
         # Create a dict for bunny shapes
 
-    def draw_shape_points(self):
-        d = 30
-        global current_shape_points
+    def draw_premade_shape(self, name, root):
+        if (name == "triangle"):
+                shape = self.triangle
+        elif(name == "square"):
+                shape = self.square
+
         with self.canvas:
-            Color(1.,0,0)
-            for i,p in enumerate(current_shape_points):
-                Ellipse(pos=(p.pos[0] +  - d / 2 + self.left_margin/2, p.pos[1] - d / 2), size=(d, d))
-                if(i == len(current_shape_points) - 1):
-                    Line(points=((p.pos[0] + self.left_margin/2, p.pos[1]), (current_shape_points[0].pos[0] + self.left_margin/2, current_shape_points[0].pos[1])), width = 3)
+            Color(0, 1, 0)
+            d = 20
+            for i,p in enumerate(shape):
+                e = Ellipse(pos=(p[0], p[1]), size=(d, d))
+                self.shape_points.append(e)
+                if(i == len(shape) - 1):
+                    line = Line(points=((p[0] + d/2, p[1] + d/2), (shape[0][0] + d/2, shape[0][1] + d/2)))
+                    self.shape_lines.append(line)
                 else:
-                    Line(points=((p.pos[0] + self.left_margin/2, p.pos[1]), (current_shape_points[i + 1].pos[0] + self.left_margin/2, current_shape_points[i+1].pos[1])), width = 3)
+                    line = Line(points=((shape[i][0] + d/2, shape[i][1] + d/2), 
+                                  (shape[i + 1][0] + d/2, shape[i + 1][1] + d/2)))
+                    self.shape_lines.append(line)
+        root.ids["choreography"].reverse_menu_state(root)
+
+    def custom_mode(self, root):
+        root.ids["custom"].disabled = True
+        root.ids["square"].disabled = True
+        root.ids["triangle"].disabled = True
+        root.ids["clear"].disabled = False
+        self.custom_mode_on = True
+
+    def triangle_custom_mode(self,root):
+        root.ids["custom"].disabled = True
+        root.ids["square"].disabled = True
+        root.ids["triangle"].disabled = True
+        root.ids["custom_triangle"].disabled = True
+        root.ids["clear"].disabled = False
+        self.triangle_custom_mode_on = True
+        self.custom_mode_on = True
+
+
+    def clear_canvas(self,root):
+        with self.canvas:
+            for e in self.shape_points:
+                self.canvas.remove(e)
+                self.shape_points = []
+            for l in self.shape_lines:
+                self.canvas.remove(l)
+                self.shape_lines = []
+        root.ids["choreography"].reverse_menu_state(root)
+        self.custom_mode_on = False
+        self.triangle_custom_mode_on = False
+        self.can_draw_more = True
+
+
+    def on_touch_down(self, touch):
+        if(self.can_draw_more and self.custom_mode_on and touch.y < 995): # Don't like this being hardcoded. Fix
+            with self.canvas:
+                Color(1, 0 ,1)
+                d = 15
+                # Connect the start if we are close enough
+                if(len(self.shape_points) > 2 and math.isclose(touch.x, self.shape_points[0].pos[0], abs_tol = 100) and math.isclose(touch.y, self.shape_points[0].pos[1], abs_tol = 100)):
+                        l = Line(points=((self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2),
+                            (self.shape_points[0].pos[0] + d / 2, self.shape_points[0].pos[1] + d / 2)))
+                        self.shape_lines.append(l)
+                        self.can_draw_more = False
+                        if(self.triangle_custom_mode_on):
+                            area = self.calculate_triangle_area()
+                            if(area <= 20000):
+                                self.notify_bad_shape()
+                else:
+                # Draw a new point
+                    if(self.triangle_custom_mode_on and len(self.shape_points) == 3):
+                            return
+                    else:
+                        e = Ellipse(pos=(touch.x - d / 2, touch.y - d / 2), size=(d, d))
+                        self.shape_points.append(e)
+                        self.last_point = self.current_point
+                        self.current_point = e
+
+                        # If we have more than two. Connect to the last point.
+                        if(len(self.shape_points) >= 2):
+                            l = Line(points=((self.last_point.pos[0] + d / 2, self.last_point.pos[1] + d / 2),
+                            (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
+                            self.shape_lines.append(l)   
+    
+    def calculate_triangle_area(self):
+        p1 = self.shape_points[0].pos
+        p2 = self.shape_points[1].pos
+        p3 = self.shape_points[2].pos
+
+        area = (1/2) * abs((p1[0]*(p2[1]-p3[1])) + (p2[0]*(p3[1]-p1[1])) + (p3[0]*(p1[1]-p2[1])))
+        return area
+    
+    def notify_bad_shape(self):
+        #self.clear_canvas(self.parent.root)
+        InformationPopup(_type="e", _message="Triangle size too small").open()
+
+
 
     def update_robots(self):
         """
@@ -169,25 +237,9 @@ class RobotCanvas(SwarmGUI, BoxLayout):
         if(widget_ids != None):
             self.update_robots()
 
-    def call_my_name(self):
-        print("RobotCanvas!")
-
-
-class DrawPopup(SwarmGUI, GridLayout):
-    shape_points = []
-    shape_lines = []
-    triangle = ((250,150), (550, 150), (400, 450))
-    square = ((250,150), (550, 150), (550, 450), (250, 450))
-
-    def __init__(self):
-        super(DrawPopup, self).__init__()
-        global popup_widget_ids
-        popup_widget_ids = self.ids
-
-    def set_custom(self):
-        self.ids['custom'].disabled = True
-        global custom_mode_on
-        custom_mode_on = True
+class Choreography(BoxLayout):
+    def __init__(self, **kwargs):
+        super(Choreography, self).__init__(**kwargs)
 
     def cancel_drawing(self):
         self.clear_canvas()
@@ -197,100 +249,12 @@ class DrawPopup(SwarmGUI, GridLayout):
         robot_canvas_ref.draw_shape_points()
         self.close_draw_popup()
 
-    def set_current_shape(self):
-        global current_shape_points
-        current_shape_points = self.shape_points
-        self.ids['custom'].disabled = True
-        self.ids['square'].disabled = True
-        self.ids['triangle'].disabled = True
-        self.ids['export'].disabled = False
-        self.ids['clear'].disabled = False
-
-    def draw_premade_shape(self, name):
-        if (name == "triangle"):
-                shape = self.triangle
-        elif(name == "square"):
-                shape = self.square
-
-        with self.canvas:
-            Color(0, 1, 0)
-            d = 20
-            for i,p in enumerate(shape):
-                e = Ellipse(pos=(p[0], p[1]), size=(d, d))
-                self.shape_points.append(e)
-                if(i == len(shape) - 1):
-                    line = Line(points=((p[0] + d/2, p[1] + d/2), (shape[0][0] + d/2, shape[0][1] + d/2)))
-                    self.shape_lines.append(line)
-                else:
-                    line = Line(points=((shape[i][0] + d/2, shape[i][1] + d/2), 
-                                  (shape[i + 1][0] + d/2, shape[i + 1][1] + d/2)))
-                    self.shape_lines.append(line)
-        self.set_current_shape()
-
-    def clear_canvas(self):
-        global current_shape_points
-        with self.canvas:
-            for e in self.shape_points:
-                self.canvas.remove(e)
-                self.shape_points = []
-            for l in self.shape_lines:
-                self.canvas.remove(l)
-                self.shape_lines = []
-        current_shape_points = []
-        self.ids['custom'].disabled = False
-        self.ids['square'].disabled = False
-        self.ids['triangle'].disabled = False
-        self.ids['export'].disabled = True
-        self.ids['clear'].disabled = True
-
-
-class ShapeCanvas(BoxLayout):
-    all_points = []
-    current_point = None
-    last_point = None
-    can_draw_more = True
-
-    def on_touch_down(self, touch):
-        global custom_mode_on
-        if(self.can_draw_more and custom_mode_on and touch.y < 995): # Don't like this being hardcoded. Fix
-            with self.canvas:
-                d = 15
-                # Connect the start if we are close enough
-                if(len(self.all_points) > 2 and math.isclose(touch.x, self.all_points[0].pos[0], abs_tol = 100) and math.isclose(touch.y, self.all_points[0].pos[1], abs_tol = 100)):
-                        Line(points=((self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2),
-                            (self.all_points[0].pos[0] + d / 2, self.all_points[0].pos[1] + d / 2)))
-                        self.can_draw_more = False
-                        global popup_widget_ids
-                        popup_widget_ids['export'].disabled = False
-                        global current_shape_points
-                        current_shape_points = self.all_points
-                else:
-                # Draw a new point
-                    e = Ellipse(pos=(touch.x - d / 2, touch.y - d / 2), size=(d, d))
-                    self.all_points.append(e)
-                    self.last_point = self.current_point
-                    self.current_point = e
-
-                    # If we have more than two. Connect to the last point.
-                    if(len(self.all_points) >= 2):
-                        Line(points=((self.last_point.pos[0] + d / 2, self.last_point.pos[1] + d / 2),
-                        (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
-
-
-class InitializePopup(SwarmGUI, GridLayout):
-    def __init__(self):
-        super(InitializePopup, self).__init__()
-
-    def set_new_dimensions(self):
-        x = self.ids['x_input'].text
-        y = self.ids['y_input'].text
-        if(x and y):
-            global floor_dimensions_meters
-            floor_dimensions_meters = (x, y)
-            self.close_initialize_popup()
-        else:
-            print("Invalid Dimensions")
-
+    def reverse_menu_state(self, root):
+        root.ids['custom'].disabled = not root.ids['custom'].disabled
+        root.ids['custom_triangle'].disabled = not root.ids['custom_triangle'].disabled
+        root.ids['square'].disabled = not root.ids['square'].disabled
+        root.ids['triangle'].disabled = not root.ids['triangle'].disabled
+        root.ids['clear'].disabled = not root.ids['clear'].disabled
 
 class Toolbar(BoxLayout):
     """
@@ -407,5 +371,3 @@ class Connections(BoxLayout, WirelessNetwork):
             InformationPopup(_type="e",
                              _message="No radio selected or available").open()
         self.wifi_image.source = self._wifi_image_sources["on"]
-
-

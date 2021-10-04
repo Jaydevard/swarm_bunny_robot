@@ -18,7 +18,7 @@ class BezierTest(FloatLayout):
 
             self.bezier = Bezier(
                     points=self.points,
-                    segments=150,
+                    segments=500,
                     loop=self.loop,
                     dash_length=100,
                     dash_offset=10)
