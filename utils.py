@@ -58,7 +58,6 @@ class InformationPopup(Popup):
         if self.callback_on_dismiss is not None:
             self.bind(on_dismiss=callback_on_dismiss)
 
-        # Main BoxLayout
         if _type == "e":
             self._message = f"[size={self.message_size}][color=ff3333]{self._message}[/color][/size]"
             self.title = "Error"
@@ -79,6 +78,7 @@ class InformationPopup(Popup):
 
         self._main_layout.add_widget(self._message_label)
         self.add_widget(self._main_layout)
+
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 import libusb
 
 
-
 class WirelessNetwork:
     """
     Wireless Network class to manage devices connected to the

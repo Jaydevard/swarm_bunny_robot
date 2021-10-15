@@ -1,0 +1,86 @@
+<StatusBar>:
+    spacing: 1
+    rows: 2
+    cols: 3
+    battery_label : battery_label
+    battery_image: battery_image
+    size_hint: 1, 1
+    # (r:1, c:1)
+    BoxLayout:
+        size_hint: 1,1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
+        canvas:
+            Color:
+                rgba: self.parent._background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+    # (r:1, c:2)
+    BoxLayout:
+        size_hint: 1, 1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
+        canvas:
+            Color:
+                rgb: self.parent._background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+    # (r:1, c:3)
+    BoxLayout:
+        size_hint: 1, 1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
+        orientation: "vertical"
+        canvas:
+            Color:
+                rgb: self.parent._background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+        Image:
+            id: battery_image
+            pos: self.pos
+            mipmap: True
+        Label:
+            id: battery_label
+            size: self.size
+            pos: self.pos
+            text: f"[b]{self.parent.parent.battery_percentage}%[/b]"
+            font_size:"20sp"
+            markup: True
+            outline_color: (1, 0, 1)
+    # (r:2, c:1)
+    BoxLayout:
+        size_hint: 1, 1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
+        canvas:
+            Color:
+                rgba: self.parent._background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+
+    # (r:2, c:2)
+    BoxLayout:
+        size_hint: 1, 1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
+        canvas:
+            Color:
+                rgba: self.parent._background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+    # (r:2, c:3)
+    BoxLayout:
+        size_hint: 1, 1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
+        canvas:
+            Color:
+                rgba: self.parent._background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+
+
+
+
+

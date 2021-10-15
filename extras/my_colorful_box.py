@@ -3,7 +3,6 @@ Author: Jaydev Madub
 Date: 9/9/21
 User is responsible for the script
 """
-
 from kivy.uix.boxlayout import BoxLayout
 from kivy.app import App
 from kivy.clock import Clock

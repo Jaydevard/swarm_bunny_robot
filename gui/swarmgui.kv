@@ -131,7 +131,7 @@ BoxLayout:
                             BoxLayout:
                                 spacing: 2
                                 padding: 2
-                                size_hint: 1, 0.12
+                                size_hint: 1, 0.2
                                 orientation: "horizontal"
                                 pos_hint: {"center_x":0.5, "center_y": 0.5}
                                 canvas.before:
@@ -149,7 +149,6 @@ BoxLayout:
                                     keep_ratio: True
 
                                 BoxLayout:
-
                                     size_hint: 1, 1
                                     orientation: "horizontal"
                                     Spinner:
@@ -183,14 +182,23 @@ BoxLayout:
 
                             # Bottom Layout for Radio Channels
                             BoxLayout:
+                                orientation: "horizontal"
                                 size_hint: 1, 1
-                                orientation: "vertical"
+                                pos_hint: {"top": 1}
                                 canvas:
                                     Color:
-                                        rgb: 0, 1, 1
+                                        rgb: 1, 1, 1
                                     Rectangle:
                                         size: self.size
                                         pos: self.pos
+                                Image:
+                                    source: "under_construction.png"
+                                    size: self.texture_size
+                            BoxLayout:
+                                orientation: "vertical"
+                                StatusBar:
+                                    size_hint: 1, 1
+                                    pos_hint: {"top": 1}
 
                     TabbedPanelItem:
                         text: "Choreography"
@@ -228,31 +236,8 @@ BoxLayout:
             spacing: 10
             padding: 10
             id: robot_canvas  # use this Id to refer to this object
-            BoxLayout:
-                id: robots
-                robot_pos1: 267, 0
-                robot_pos2: 267, 0
-                canvas.before:
-                    Color
-                        #rgb: utils.get_color_from_hex('#D3D3D3')
-                        rgb: 0, 0, 1, 1
-                    Rectangle:
-                        size: self.size
-                        pos: self.pos
-                canvas:
-                    Color:
-                        rgb: 1, 1, 1
-                    Ellipse:
-                        source: 'bugs_bunny2.png'
-                        size: 80, 80
-                        pos: self.robot_pos1[1], self.robot_pos1[1]
 
-                    Color:
-                        rgb: 1, 1, 1
-                    Ellipse:
-                        source: 'bugs_bunny2.png'
-                        size: 80, 80
-                        pos: self.robot_pos2[1], self.robot_pos2[1]
+
 
 <DrawPopup>:
     id: draw

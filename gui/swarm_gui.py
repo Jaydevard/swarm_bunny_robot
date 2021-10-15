@@ -19,11 +19,13 @@ from kivy.uix.label import Label
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.image import Image
 from kivy.uix.spinner import Spinner
-
+from kivy.lang import Builder
 from utils import InformationPopup
 from gui.simulation import BunnyShape
 from communication.network import WirelessNetwork
-
+from custom_widgets.status_bar.statusbar import StatusBar
+from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
+from core.swarm_bunny_manager import SwarmBunnyManager
 import math  
 
 # Globals
@@ -35,6 +37,9 @@ custom_mode_on = False
 current_shape_points = []
 floor_dimensions_meters = (10, 10)  # Default
 floor_dimensions_pixels = ()
+
+Builder.load_file("custom_widgets\\status_bar\\statusbar.kv")
+Builder.load_file("custom_widgets\\bunny_widget\\bunnywidget.kv")
 
 
 class SwarmGUI(App):
@@ -89,91 +94,39 @@ class SwarmGUI(App):
         self.initPopupWindow.dismiss()
 
 
-class RobotCanvas(SwarmGUI, BoxLayout):
+class RobotCanvas(BoxLayout):
     """
     Class RobotCanvas
-    Used to initalize and display the robots
+    Used to initialize and display the robots
     """
-
-    terminate_execution = False # Termination flag
-    robot_pos = ObjectProperty(None) # Property ref from kv file
-    # Default values for sim
-    v_1 = [0, 0]
-    v_2 = [0, 0]
-    left_margin = Window.width / 6
-    
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
-        global robot_canvas_ref
-        global floor_dimensions_pixels 
-        robot_canvas_ref = self
-        floor_dimensions_pixels = (Window.width - self.left_margin, Window.height)
+        self._manager = SwarmBunnyManager(canvas=self)
+        Clock.schedule_interval(self.update_canvas, 10.0)
+        self.bind(pos=self._update_pos, size=self._update_size)
         # Create a dict for bunny shapes
 
-    def draw_shape_points(self):
-        d = 30
-        global current_shape_points
-        with self.canvas:
-            Color(1.,0,0)
-            for i,p in enumerate(current_shape_points):
-                Ellipse(pos=(p.pos[0] +  - d / 2 + self.left_margin/2, p.pos[1] - d / 2), size=(d, d))
-                if(i == len(current_shape_points) - 1):
-                    Line(points=((p.pos[0] + self.left_margin/2, p.pos[1]), (current_shape_points[0].pos[0] + self.left_margin/2, current_shape_points[0].pos[1])), width = 3)
-                else:
-                    Line(points=((p.pos[0] + self.left_margin/2, p.pos[1]), (current_shape_points[i + 1].pos[0] + self.left_margin/2, current_shape_points[i+1].pos[1])), width = 3)
+    def _update_pos(self, instance, pos):
+        self.pos = pos
 
-    def update_robots(self):
-        """
-        Updates the robot prosition on the canvas
-        """
-        robots = widget_ids['robots'] # Reference to the robot widgits
-        w = Window.width - self.width
-        # Right now I'm manually doing the addition. Will need to improve 
-        if(robots.robot_pos1[0] > Window.width - 30 or robots.robot_pos1[0] < w):
-            self.v_1[0] *= -1
-        if(robots.robot_pos1[1] > Window.height - 30 or robots.robot_pos1[1] < 0):
-            self.v_1[1] *= -1
+    def _update_size(self, instance, size):
+        self.size = size
 
-        robots.robot_pos1[0] += self.v_1[0]
-        robots.robot_pos1[1] += self.v_1[1]
-
-        if(robots.robot_pos2[0] > Window.width - 30 or robots.robot_pos2[0] < w):
-            self.v_2[0] *= -1
-        if(robots.robot_pos2[1] > Window.height - 30 or robots.robot_pos2[1] < 0):
-            self.v_2[1] *= -1
-
-        robots.robot_pos2[0] += self.v_2[0]
-        robots.robot_pos2[1] += self.v_2[1]
-
-    def init_robots(self, dt):
-        """
-        Sets up the robots velocities and bounds
-        """
-        robots = widget_ids['robots']
-        w = Window.width - self.width
-        self.v_1 = [7, -4]
-        self.v_2 = [-5, 8]
-
-        robots.robot_pos1 = [w, 0]
-        robots.robot_pos2 = [w, 0]
-
-        # Create a schedule to update the robots pos
-        Clock.schedule_interval(self.update, 1.0 / 60.0)        
-
-    def update(self, dt):
-        """
-        Calls the update robot function if the widgets are visible
-        """
-        if(simulation_live == False):
-            return False# Kill this update thread
-        if(widget_ids != None):
-            self.update_robots()
-
-    def call_my_name(self):
-        print("RobotCanvas!")
+    def update_canvas(self, *args):
+        for bunny in self._manager.bunny_refs.values():
+            if not bunny['on_canvas']:
+                print("adding")
+                bunny = BunnyWidget()
+                bunny.pos = self.pos
+                bunny.size = self.size
+                self.add_widget(bunny)
 
 
-class DrawPopup(SwarmGUI, GridLayout):
+    def add_robot(self):
+        pass
+
+
+class DrawPopup(GridLayout):
     shape_points = []
     shape_lines = []
     triangle = ((250,150), (550, 150), (400, 450))
@@ -277,7 +230,7 @@ class ShapeCanvas(BoxLayout):
                         (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
 
 
-class InitializePopup(SwarmGUI, GridLayout):
+class InitializePopup(GridLayout):
     def __init__(self):
         super(InitializePopup, self).__init__()
 
@@ -406,6 +359,6 @@ class Connections(BoxLayout, WirelessNetwork):
         if self._selected_radio_dongle is None:
             InformationPopup(_type="e",
                              _message="No radio selected or available").open()
+            return
         self.wifi_image.source = self._wifi_image_sources["on"]
-
 
