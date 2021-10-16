@@ -143,7 +143,7 @@ BoxLayout:
                                 Image:
                                     id: wifi_image
                                     size_hint: 0.1, 1
-                                    source: "images\\wifi\\wifi_off.png"
+                                    source: "images\\wifi\\wifi_connected_2.png"
                                     pos_hint: {"left": 1}
                                     allow_stretch: True
                                     keep_ratio: True
@@ -185,20 +185,17 @@ BoxLayout:
                                 orientation: "horizontal"
                                 size_hint: 1, 1
                                 pos_hint: {"top": 1}
-                                canvas:
-                                    Color:
-                                        rgb: 1, 1, 1
-                                    Rectangle:
-                                        size: self.size
-                                        pos: self.pos
                                 Image:
                                     source: "under_construction.png"
                                     size: self.texture_size
                             BoxLayout:
+                                size_hint: 1, 0.1
                                 orientation: "vertical"
+                                pos_hint: {"center_x":0.5, "center_y": 0.5}
                                 StatusBar:
                                     size_hint: 1, 1
-                                    pos_hint: {"top": 1}
+                                    pos_hint: {"right": 1}
+
 
                     TabbedPanelItem:
                         text: "Choreography"

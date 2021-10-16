@@ -80,7 +80,6 @@ class InformationPopup(Popup):
         self.add_widget(self._main_layout)
 
 
-
 if __name__ == "__main__":
     pass
 

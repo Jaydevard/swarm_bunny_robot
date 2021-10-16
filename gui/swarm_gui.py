@@ -25,8 +25,8 @@ from gui.simulation import BunnyShape
 from communication.network import WirelessNetwork
 from custom_widgets.status_bar.statusbar import StatusBar
 from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
-from core.swarm_bunny_manager import SwarmBunnyManager
-import math  
+import math
+from core.constants import Constants as c
 
 # Globals
 widget_ids = None
@@ -101,8 +101,6 @@ class RobotCanvas(BoxLayout):
     """
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
-        self._manager = SwarmBunnyManager(canvas=self)
-        Clock.schedule_interval(self.update_canvas, 10.0)
         self.bind(pos=self._update_pos, size=self._update_size)
         # Create a dict for bunny shapes
 
@@ -112,18 +110,9 @@ class RobotCanvas(BoxLayout):
     def _update_size(self, instance, size):
         self.size = size
 
-    def update_canvas(self, *args):
-        for bunny in self._manager.bunny_refs.values():
-            if not bunny['on_canvas']:
-                print("adding")
-                bunny = BunnyWidget()
-                bunny.pos = self.pos
-                bunny.size = self.size
-                self.add_widget(bunny)
-
-
     def add_robot(self):
-        pass
+        print(c.GUI_REFRESH_RATE)
+
 
 
 class DrawPopup(GridLayout):
