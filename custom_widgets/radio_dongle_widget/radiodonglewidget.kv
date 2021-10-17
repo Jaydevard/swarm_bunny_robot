@@ -1,0 +1,39 @@
+<RadioDongleWidget>:
+    _wifi_image: _wifi_image
+    _spinner: _spinner
+    _search_button: _search_button
+    _connect_button: _connect_button
+
+    size_hint: 1, 1
+    orientation: "horizontal"
+    # Wifi Image
+    Image:
+        id: _wifi_image
+        size_hint: 1, 1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
+    # Radio Options Spinner
+    Spinner:
+        id: _spinner
+        size_hint: 1, 1
+        text: "[b][i]Select radio dongle[/i][/b]"
+        markup: True
+        size_hint: 1, 1
+        font_size: '16sp'
+        pos_hint: {"left": 1}
+        values: ("ty")
+    GridLayout:
+        rows: 2
+        cols: 1
+        size_hint: (1, 1)
+        Button:
+            id: _search_button
+            size_hint: 1, 1
+            text: "[b][i]Search[/i][/b]"
+            markup: True
+            font_size: '17sp'
+        Button:
+            id: _connect_button
+            size_hint: 1, 1
+            text: "[b][i]Connect[i][/b]"
+            font_size: '17sp'
+            markup: True

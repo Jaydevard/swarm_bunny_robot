@@ -119,66 +119,13 @@ BoxLayout:
                         text: "Connections"
                         # Main Connections Layout
                         Connections:
-                            connect_button: connect_button
-                            search_button: search_button
-                            wifi_image: wifi_image
-                            search_and_connect_box: search_and_connect_box
-                            radio_selection: radio_selection
                             id: connections
                             size_hint: 1, 1
                             orientation: "vertical"
                             # Top Layout for radio dongle
-                            BoxLayout:
-                                spacing: 2
-                                padding: 2
-                                size_hint: 1, 0.2
-                                orientation: "horizontal"
-                                pos_hint: {"center_x":0.5, "center_y": 0.5}
-                                canvas.before:
-                                    Color:
-                                        rgba: 0, 0, 0, 0.6
-                                        Rectangle:
-                                            size: self.size
-                                            pos: self.pos
-                                Image:
-                                    id: wifi_image
-                                    size_hint: 0.1, 1
-                                    source: "images\\wifi\\wifi_connected_2.png"
-                                    pos_hint: {"left": 1}
-                                    allow_stretch: True
-                                    keep_ratio: True
-
-                                BoxLayout:
-                                    size_hint: 1, 1
-                                    orientation: "horizontal"
-                                    Spinner:
-                                        id: radio_selection
-                                        text: "[b][i]Select radio dongle[/i][/b]"
-                                        markup: True
-                                        size_hint: 1, 1
-                                        font_size: '16sp'
-                                        pos_hint: {"left": 1}
-                                        values: ("ty")
-                                        on_text: root.ids.connections.update_radio_dongle_selection(self.text)
-
-                                    BoxLayout:
-                                        id: search_and_connect_box
-                                        size_hint: 1, 1
-                                        orientation: "vertical"
-                                        Button:
-                                            id: search_button
-                                            size_hint: 1, 1
-                                            text: "[b][i]Search[/i][/b]"
-                                            markup: True
-                                            font_size: '17sp'
-                                            on_release: root.ids.connections.search_button_press()
-                                        Button:
-                                            id: connect_button
-                                            size_hint: 1, 1
-                                            text: "[b][i]Connect[i][/b]"
-                                            font_size: '17sp'
-                                            markup: True
-                                            on_release: root.ids.connections.connect_button_press()
+                            RadioDongleWidget:
+                                size_hint: 1, 0.1
+                                pos_hint: {"top": 1}
 
                             # Bottom Layout for Radio Channels
                             BoxLayout:
@@ -188,11 +135,13 @@ BoxLayout:
                                 Image:
                                     source: "under_construction.png"
                                     size: self.texture_size
+
+                            # StatusBar
                             BoxLayout:
                                 size_hint: 1, 0.1
                                 orientation: "vertical"
                                 pos_hint: {"center_x":0.5, "center_y": 0.5}
-                                StatusBar:
+                                StatusBarWidget:
                                     size_hint: 1, 1
                                     pos_hint: {"right": 1}
 

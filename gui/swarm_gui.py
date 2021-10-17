@@ -23,8 +23,9 @@ from kivy.lang import Builder
 from utils import InformationPopup
 from gui.simulation import BunnyShape
 from communication.network import WirelessNetwork
-from custom_widgets.status_bar.statusbar import StatusBar
+from custom_widgets.status_bar_widget.status_bar_widget import StatusBarWidget
 from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
+from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWidget
 import math
 from core.constants import Constants as c
 
@@ -38,8 +39,14 @@ current_shape_points = []
 floor_dimensions_meters = (10, 10)  # Default
 floor_dimensions_pixels = ()
 
-Builder.load_file("custom_widgets\\status_bar\\statusbar.kv")
-Builder.load_file("custom_widgets\\bunny_widget\\bunnywidget.kv")
+
+def load_kv_files():
+    Builder.load_file("custom_widgets\\status_bar_widget\\statusbarwidget.kv")
+    Builder.load_file("custom_widgets\\bunny_widget\\bunnywidget.kv")
+    Builder.load_file("custom_widgets\\radio_dongle_widget\\radiodonglewidget.kv")
+
+
+load_kv_files()
 
 
 class SwarmGUI(App):
@@ -52,9 +59,11 @@ class SwarmGUI(App):
     initPopupWindow = Popup(title="Initialize GUI Dimensions", size_hint=(None, None), size=(300,200))
 
     def build(self):
+
         # Wait till the gui inits to pull in the IDs
         Window.size = (800, 600)
         Clock.schedule_once(self.finish_init, 1)
+
 
     def start_stop_execution(self): 
         global simulation_live

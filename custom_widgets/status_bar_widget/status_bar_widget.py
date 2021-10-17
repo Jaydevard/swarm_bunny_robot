@@ -1,41 +1,38 @@
 import random
 import time
 from kivy.uix.image import Image
-from kivy.uix.widget import Widget
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.atlas import Atlas
 from kivy.animation import Animation
-from kivy.properties import BoundedNumericProperty, ObjectProperty, StringProperty, ListProperty
-from kivy.graphics import Line, Rectangle, Ellipse, Color
-from kivy.uix.label import Label
+from kivy.properties import BoundedNumericProperty, ObjectProperty
 from kivy.uix.gridlayout import GridLayout
 from kivy.clock import Clock
 
 
-class StatusBarImage(ButtonBehavior, Image):
+class StatusBarWidgetImage(ButtonBehavior, Image):
     def __init__(self, **kwargs):
-        super(StatusBarImage, self).__init__(**kwargs)
+        super(StatusBarWidgetImage, self).__init__(**kwargs)
 
 
-class StatusBar(GridLayout):
+class StatusBarWidget(GridLayout):
     _battery_image = ObjectProperty()
     _battery_label = ObjectProperty()
-    _wifi = ObjectProperty()
-    _state = ObjectProperty()
+    _wifi_image = ObjectProperty()
+    _state_image = ObjectProperty()
     _speed_image = ObjectProperty()
     _speed_label = ObjectProperty()
     _battery_percentage = BoundedNumericProperty(100, min=0, max=100, errorvalue=0)
 
     def __init__(self, **kwargs):
-        super(StatusBar, self).__init__(**kwargs)
-        self._IMAGE_PATH = "custom_widgets//status_bar//images//"
+        super(StatusBarWidget, self).__init__(**kwargs)
+        self._IMAGE_PATH = "custom_widgets//status_bar_widget//images//"
         self._background_image = self._IMAGE_PATH + "background_image.png"
         Clock.schedule_once(self.initialize_images, 2)
 
     def initialize_images(self, *args):
-        self._state.source = self._IMAGE_PATH + "state_idle.png"
-        self._wifi.source = self._IMAGE_PATH + "wifi_not_connected.png"
-        self._battery_image.source = self._IMAGE_PATH + "battery_20.png"
+        self._state_image.source = self._IMAGE_PATH + "state_charge.png"
+        self._wifi_image.source = self._IMAGE_PATH + "wifi_not_connected.png"
+        self._battery_image.source = self._IMAGE_PATH + "battery_charging.png"
         self._speed_image.source = self._IMAGE_PATH + "speed.png"
 
     def on_pos(self, instance, value):
@@ -54,9 +51,9 @@ class StatusBar(GridLayout):
         :return: None
         """
         image_pressed = args[0]
-        if image_pressed == "battery":
+        if image_pressed == "battery_image":
             pass
-        elif image_pressed == "wifi":
+        elif image_pressed == "wifi_image":
             pass
 
     def update_battery_level(self, value):
@@ -75,7 +72,11 @@ class StatusBar(GridLayout):
         self._battery_label.text = f"[b]  {value}%[/b]"
 
     def update_state(self, state):
-        pass
+        if state not in ("formation", "idle", "charge", "roam"):
+            print(f"state {state} is unknown, states are ('formation', 'idle', 'charge', 'roam')")
+            raise TypeError
+        else:
+            self._state_image.source = self._IMAGE_PATH + f"state_{state}.png"
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-<StatusBar>:
+<StatusBarWidget>:
     canvas.before:
         Rectangle:
             size: self.size
@@ -10,8 +10,8 @@
     cols: 4
     _battery_image: _battery_image
     _battery_label: _battery_label
-    _wifi: _wifi
-    _state: _state
+    _wifi_image: _wifi_image
+    _state_image: _state_image
     _speed_image: _speed_image
     _speed_label: _speed_label
     size_hint: 1, 1
@@ -19,10 +19,22 @@
     BoxLayout:
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y":0.5}
+        Image:
+            id: _state_image
+            name: "state_image"
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y":0.5}
+            orientation: "horizontal"
+
+
+# (r:1, c:2)
+    BoxLayout:
+        size_hint: 1, 1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
         orientation: "vertical"
-        StatusBarImage:
+        StatusBarWidgetImage:
             id: _speed_image
-            name: "speed"
+            name: "speed_image"
             size_hint: 1, 1
             pos_hint: {"center_x": 0.5, "center_y":0.5}
 
@@ -34,23 +46,14 @@
             text:"[b]15[/b] \r[i]cm/s[/i]"
             markup: True
 
-    BoxLayout:
-        size_hint: 1, 1
-        pos_hint: {"center_x": 0.5, "center_y":0.5}
-        Image:
-            id: _state
-            size_hint: 1, 1
-            pos_hint: {"center_x": 0.5, "center_y":0.5}
-            orientation: "horizontal"
-
 
     # (r:1, c:3)
     FloatLayout:
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y":0.5}
-        StatusBarImage:
+        StatusBarWidgetImage:
             id: _battery_image
-            name: "battery"
+            name: "battery_image"
             pos_hint: {"center_x": 0.5, "center_y":0.5}
             on_release: self.parent.parent.on_image_press(self.name)
         Label:
@@ -61,14 +64,13 @@
             text:"[b]  15%[/b]"
             markup: True
 
-
     # (r:1, c:4)
     BoxLayout:
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y":0.5}
-        StatusBarImage:
-            id: _wifi
-            name: "wifi"
+        StatusBarWidgetImage:
+            id: _wifi_image
+            name: "wifi_image"
             pos: self.pos
             size: self.size
             on_release: self.parent.parent.on_image_press(self.name)
