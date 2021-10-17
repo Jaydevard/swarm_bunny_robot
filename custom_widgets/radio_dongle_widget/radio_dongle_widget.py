@@ -93,7 +93,7 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
             self._connect_button.text = "[b][i]Disconnect[i][/b]"
             self._wifi_image.source = self._IMAGE_PATH + "wifi_connected.png"
         else:
-            InformationPopup(_type='e', _message="Connection to radio could not be established!!")
+            InformationPopup(_type='e', _message="Connection to radio could not be established!!").open()
             self._active_radio_dongle = None
 
 
