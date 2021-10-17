@@ -1,13 +1,8 @@
-import random
-
-import kivy.clock
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.scatterlayout import ScatterLayout
 from kivy.uix.dropdown import DropDown
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
-from kivy.properties import StringProperty
 from kivy.core.window import Window
 from kivy.graphics import Color, Ellipse, Line
 from kivy.config import Config
@@ -21,15 +16,6 @@ from communication.network import WirelessNetwork
 import math  
 
 # Globals
-widget_ids = None
-simulation_live = False
-popup_widget_ids = None
-robot_canvas_ref = None
-custom_mode_on = False
-current_shape_points = []
-floor_dimensions_meters = (10, 10)  # Default
-floor_dimensions_pixels = ()
-
 
 class SwarmGUI(App):
     """
@@ -38,42 +24,12 @@ class SwarmGUI(App):
     Main controls
     """
 
-    def build(self):
-        # Wait till the gui inits to pull in the IDs
-        Window.size = (800, 600)
-        Clock.schedule_once(self.finish_init, 1)
-
-    def start_stop_execution(self): 
-        global simulation_live
-        if(simulation_live == False):
-            widget_ids['start_stop_button'].text = "Stop Simulation"
-            global robot_canvas_ref
-            robot_canvas_ref.init_robots(robot_canvas_ref)
-            simulation_live = True
-        else: 
-            widget_ids['start_stop_button'].text = "Start"
-            # Return to initial position.. Need to automate creation of robots
-            widget_ids['robots'].robot_pos1 = (133, 0)
-            widget_ids['robots'].robot_pos2 = (133, 0)
-            simulation_live = False
-
-    def finish_init(self, dt):
-        # Not ideal solution. Ids are out of scope from our RobotCanvas class so setting them global
-        global widget_ids
-        widget_ids = self.root.ids
-
 class RobotCanvas(SwarmGUI, BoxLayout):
     """
     Class RobotCanvas
     Used to initalize and display the robots
-    """
-    
-    terminate_execution = False # Termination flag
-    robot_pos = ObjectProperty(None) # Property ref from kv file
+    """  
     # Default values for sim
-    v_1 = [0, 0]
-    v_2 = [0, 0]
-    left_margin = Window.width / 6
     current_point = None
     last_point = None
     shape_points = []
@@ -87,11 +43,6 @@ class RobotCanvas(SwarmGUI, BoxLayout):
 
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
-        global robot_canvas_ref
-        global floor_dimensions_pixels 
-        robot_canvas_ref = self
-        floor_dimensions_pixels = (Window.width - self.left_margin, Window.height)
-        # Create a dict for bunny shapes
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):
@@ -118,6 +69,7 @@ class RobotCanvas(SwarmGUI, BoxLayout):
         root.ids["custom"].disabled = True
         root.ids["square"].disabled = True
         root.ids["triangle"].disabled = True
+        root.ids["custom_triangle"].disabled = True
         root.ids["clear"].disabled = False
         self.custom_mode_on = True
 
@@ -188,66 +140,9 @@ class RobotCanvas(SwarmGUI, BoxLayout):
         #self.clear_canvas(self.parent.root)
         InformationPopup(_type="e", _message="Triangle size too small").open()
 
-
-
-    def update_robots(self):
-        """
-        Updates the robot prosition on the canvas
-        """
-        robots = widget_ids['robots'] # Reference to the robot widgits
-        w = Window.width - self.width
-        # Right now I'm manually doing the addition. Will need to improve 
-        if(robots.robot_pos1[0] > Window.width - 30 or robots.robot_pos1[0] < w):
-            self.v_1[0] *= -1
-        if(robots.robot_pos1[1] > Window.height - 30 or robots.robot_pos1[1] < 0):
-            self.v_1[1] *= -1
-
-        robots.robot_pos1[0] += self.v_1[0]
-        robots.robot_pos1[1] += self.v_1[1]
-
-        if(robots.robot_pos2[0] > Window.width - 30 or robots.robot_pos2[0] < w):
-            self.v_2[0] *= -1
-        if(robots.robot_pos2[1] > Window.height - 30 or robots.robot_pos2[1] < 0):
-            self.v_2[1] *= -1
-
-        robots.robot_pos2[0] += self.v_2[0]
-        robots.robot_pos2[1] += self.v_2[1]
-
-    def init_robots(self, dt):
-        """
-        Sets up the robots velocities and bounds
-        """
-        robots = widget_ids['robots']
-        w = Window.width - self.width
-        self.v_1 = [7, -4]
-        self.v_2 = [-5, 8]
-
-        robots.robot_pos1 = [w, 0]
-        robots.robot_pos2 = [w, 0]
-
-        # Create a schedule to update the robots pos
-        Clock.schedule_interval(self.update, 1.0 / 60.0)        
-
-    def update(self, dt):
-        """
-        Calls the update robot function if the widgets are visible
-        """
-        if(simulation_live == False):
-            return False# Kill this update thread
-        if(widget_ids != None):
-            self.update_robots()
-
 class Choreography(BoxLayout):
     def __init__(self, **kwargs):
         super(Choreography, self).__init__(**kwargs)
-
-    def cancel_drawing(self):
-        self.clear_canvas()
-        self.close_draw_popup()
-
-    def export_shape(self):
-        robot_canvas_ref.draw_shape_points()
-        self.close_draw_popup()
 
     def reverse_menu_state(self, root):
         root.ids['custom'].disabled = not root.ids['custom'].disabled
