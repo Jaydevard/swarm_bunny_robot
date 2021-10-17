@@ -8,21 +8,31 @@
     spacing: 1
     rows: 1
     cols: 4
-    battery_image: battery_image
-    wifi_status: wifi_status
+    _battery_image: _battery_image
+    _battery_label: _battery_label
+    _wifi: _wifi
     _state: _state
-    speed: speed
+    _speed_image: _speed_image
+    _speed_label: _speed_label
     size_hint: 1, 1
     # (r:1, c:1)
     BoxLayout:
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y":0.5}
+        orientation: "vertical"
+        StatusBarImage:
+            id: _speed_image
+            name: "speed"
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y":0.5}
+
         Label:
-            id: speed
+            id: _speed_label
+            name: "speed_label"
             size_hint: 1,1
             pos_hint: {"center_x": 0.5, "center_y":0.5}
-            text: "Speed:\n 65 cm/s"
-
+            text:"[b]15[/b] \r[i]cm/s[/i]"
+            markup: True
 
     BoxLayout:
         size_hint: 1, 1
@@ -32,30 +42,36 @@
             size_hint: 1, 1
             pos_hint: {"center_x": 0.5, "center_y":0.5}
             orientation: "horizontal"
-            source: self.parent.parent._state_image
 
 
     # (r:1, c:3)
-    BoxLayout:
+    FloatLayout:
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y":0.5}
-        orientation: "horizontal"
+        StatusBarImage:
+            id: _battery_image
+            name: "battery"
+            pos_hint: {"center_x": 0.5, "center_y":0.5}
+            on_release: self.parent.parent.on_image_press(self.name)
+        Label:
+            id: _battery_label
+            name: "battery_label"
+            size_hint: 1,0.2
+            pos_hint: {"center_x": 0.5, "center_y":0.5}
+            text:"[b]  15%[/b]"
+            markup: True
 
-        Image:
-            id: battery_image
-            pos: self.pos
-            mipmap: True
 
     # (r:1, c:4)
     BoxLayout:
         size_hint: 1, 1
         pos_hint: {"center_x": 0.5, "center_y":0.5}
-        Image:
-            id: wifi_status
+        StatusBarImage:
+            id: _wifi
+            name: "wifi"
             pos: self.pos
             size: self.size
-            source: self.parent.parent._wifi_image
-            on_touch_down: self.parent.parent.call_me()
+            on_release: self.parent.parent.on_image_press(self.name)
 
 
 
