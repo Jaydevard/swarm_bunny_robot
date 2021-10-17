@@ -7,7 +7,6 @@ from kivy.core.window import Window
 from kivy.graphics import Color, Ellipse, Line
 from kivy.config import Config
 from kivy.uix.button import Button
-
 from utils import InformationPopup
 from gui.simulation import BunnyShape
 from communication.network import WirelessNetwork
@@ -16,6 +15,23 @@ from communication.network import WirelessNetwork
 import math  
 
 # Globals
+=======
+from kivy.uix.label import Label
+from kivy.uix.tabbedpanel import TabbedPanel
+from kivy.uix.image import Image
+from kivy.uix.spinner import Spinner
+from kivy.lang import Builder
+from utils import InformationPopup
+from gui.simulation import BunnyShape
+from communication.network import WirelessNetwork
+from custom_widgets.status_bar.statusbar import StatusBar
+from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
+from core.swarm_bunny_manager import SwarmBunnyManager
+import math  
+
+Builder.load_file("custom_widgets\\status_bar\\statusbar.kv")
+Builder.load_file("custom_widgets\\bunny_widget\\bunnywidget.kv")
+
 
 class SwarmGUI(App):
     """
@@ -24,7 +40,7 @@ class SwarmGUI(App):
     Main controls
     """
 
-class RobotCanvas(SwarmGUI, BoxLayout):
+class RobotCanvas(BoxLayout):
     """
     Class RobotCanvas
     Used to initalize and display the robots
@@ -40,6 +56,32 @@ class RobotCanvas(SwarmGUI, BoxLayout):
 
     triangle = ((500,150), (800, 150), (650, 450))
     square = ((250,150), (550, 150), (550, 450), (250, 450))
+
+    def __init__(self, **kwargs):
+        super(RobotCanvas, self).__init__(**kwargs)
+        self._manager = SwarmBunnyManager(canvas=self)
+        Clock.schedule_interval(self.update_canvas, 10.0)
+        self.bind(pos=self._update_pos, size=self._update_size)
+        # Create a dict for bunny shapes
+
+    def _update_pos(self, instance, pos):
+        self.pos = pos
+
+    def _update_size(self, instance, size):
+        self.size = size
+
+    def update_canvas(self, *args):
+        for bunny in self._manager.bunny_refs.values():
+            if not bunny['on_canvas']:
+                print("adding")
+                bunny = BunnyWidget()
+                bunny.pos = self.pos
+                bunny.size = self.size
+                self.add_widget(bunny)
+
+
+    def add_robot(self):
+        pass
 
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
@@ -132,7 +174,6 @@ class RobotCanvas(SwarmGUI, BoxLayout):
         p1 = self.shape_points[0].pos
         p2 = self.shape_points[1].pos
         p3 = self.shape_points[2].pos
-
         area = (1/2) * abs((p1[0]*(p2[1]-p3[1])) + (p2[0]*(p3[1]-p1[1])) + (p3[0]*(p1[1]-p2[1])))
         return area
     
@@ -265,4 +306,5 @@ class Connections(BoxLayout, WirelessNetwork):
         if self._selected_radio_dongle is None:
             InformationPopup(_type="e",
                              _message="No radio selected or available").open()
+            return
         self.wifi_image.source = self._wifi_image_sources["on"]

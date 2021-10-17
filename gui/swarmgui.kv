@@ -131,7 +131,7 @@ BoxLayout:
                             BoxLayout:
                                 spacing: 2
                                 padding: 2
-                                size_hint: 1, 0.12
+                                size_hint: 1, 0.2
                                 orientation: "horizontal"
                                 pos_hint: {"center_x":0.5, "center_y": 0.5}
                                 canvas.before:
@@ -149,7 +149,6 @@ BoxLayout:
                                     keep_ratio: True
 
                                 BoxLayout:
-
                                     size_hint: 1, 1
                                     orientation: "horizontal"
                                     Spinner:
@@ -183,15 +182,24 @@ BoxLayout:
 
                             # Bottom Layout for Radio Channels
                             BoxLayout:
+                                orientation: "horizontal"
                                 size_hint: 1, 1
-                                orientation: "vertical"
+                                pos_hint: {"top": 1}
                                 canvas:
                                     Color:
-                                        rgb: 0, 1, 1
+                                        rgb: 1, 1, 1
                                     Rectangle:
                                         size: self.size
                                         pos: self.pos
-                    
+                                Image:
+                                    source: "under_construction.png"
+                                    size: self.texture_size
+                            BoxLayout:
+                                orientation: "vertical"
+                                StatusBar:
+                                    size_hint: 1, 1
+                                    pos_hint: {"top": 1}
+
                     TabbedPanelItem:
                         text: "Choreography"
                         Choreography:
