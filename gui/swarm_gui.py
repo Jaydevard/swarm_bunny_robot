@@ -1,43 +1,20 @@
-import random
-
-import kivy.clock
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.gridlayout import GridLayout
 from kivy.uix.dropdown import DropDown
-from kivy.uix.widget import Widget
-from kivy.animation import Animation
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
-from kivy.properties import StringProperty
 from kivy.core.window import Window
-from kivy.uix.popup import Popup
 from kivy.graphics import Color, Ellipse, Line
 from kivy.config import Config
 from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.tabbedpanel import TabbedPanel
-from kivy.uix.image import Image
-from kivy.uix.spinner import Spinner
 from kivy.lang import Builder
 from utils import InformationPopup
-from gui.simulation import BunnyShape
 from communication.network import WirelessNetwork
 from custom_widgets.status_bar_widget.status_bar_widget import StatusBarWidget
 from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
 from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWidget
 import math
-from core.constants import Constants as c
-
-# Globals
-widget_ids = None
-simulation_live = False
-popup_widget_ids = None
-robot_canvas_ref = None
-custom_mode_on = False
-current_shape_points = []
-floor_dimensions_meters = (10, 10)  # Default
-floor_dimensions_pixels = ()
+from core.constants import Constants as Cons
 
 
 def load_kv_files():
@@ -55,58 +32,25 @@ class SwarmGUI(App):
     This is where we instantiate the GUI
     Main controls
     """
-    popupWindow = Popup(title="Draw a new shape")
-    initPopupWindow = Popup(title="Initialize GUI Dimensions", size_hint=(None, None), size=(300,200))
-
-    def build(self):
-
-        # Wait till the gui inits to pull in the IDs
-        Window.size = (800, 600)
-        Clock.schedule_once(self.finish_init, 1)
-
-    def start_stop_execution(self):
-        global simulation_live
-        if(simulation_live == False):
-            widget_ids['start_stop_button'].text = "Stop Simulation"
-            global robot_canvas_ref
-            robot_canvas_ref.init_robots(robot_canvas_ref)
-            simulation_live = True
-        else: 
-            widget_ids['start_stop_button'].text = "Start"
-            # Return to initial position.. Need to automate creation of robots
-            widget_ids['robots'].robot_pos1 = (133, 0)
-            widget_ids['robots'].robot_pos2 = (133, 0)
-            simulation_live = False
-
-    def finish_init(self, dt):
-        # Not ideal solution. Ids are out of scope from our RobotCanvas class so setting them global
-        global widget_ids
-        widget_ids = self.root.ids
-
-    def show_draw_popup(self):
-        self.show = DrawPopup()
-        self.popupWindow.content = self.show
-        self.popupWindow.size = floor_dimensions_pixels
-        self.popupWindow.size_hint = (None, None)
-        self.popupWindow.open()
-
-    def show_initialize_popup(self):
-        self.show = InitializePopup()
-        self.initPopupWindow.content = self.show
-        self.initPopupWindow.open()
-
-    def close_draw_popup(self):
-        self.popupWindow.dismiss()
-    
-    def close_initialize_popup(self):
-        self.initPopupWindow.dismiss()
 
 
 class RobotCanvas(BoxLayout):
     """
     Class RobotCanvas
-    Used to initialize and display the robots
-    """
+    Used to initalize and display the robots
+    """  
+    # Default values for sim
+    current_point = None
+    last_point = None
+    shape_points = []
+    shape_lines = []
+    can_draw_more = True
+    custom_mode_on = False
+    triangle_custom_mode_on = False
+
+    triangle = ((500,150), (800, 150), (650, 450))
+    square = ((250,150), (550, 150), (550, 450), (250, 450))
+
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
         self.bind(pos=self._update_pos, size=self._update_size)
@@ -119,43 +63,9 @@ class RobotCanvas(BoxLayout):
         self.size = size
 
     def add_robot(self):
-        print(c.GUI_REFRESH_RATE)
+        print(Cons.GUI_REFRESH_RATE)
 
-
-class DrawPopup(GridLayout):
-    shape_points = []
-    shape_lines = []
-    triangle = ((250, 150), (550, 150), (400, 450))
-    square = ((250, 150), (550, 150), (550, 450), (250, 450))
-
-    def __init__(self):
-        super(DrawPopup, self).__init__()
-        global popup_widget_ids
-        popup_widget_ids = self.ids
-
-    def set_custom(self):
-        self.ids['custom'].disabled = True
-        global custom_mode_on
-        custom_mode_on = True
-
-    def cancel_drawing(self):
-        self.clear_canvas()
-        self.close_draw_popup()
-
-    def export_shape(self):
-        robot_canvas_ref.draw_shape_points()
-        self.close_draw_popup()
-
-    def set_current_shape(self):
-        global current_shape_points
-        current_shape_points = self.shape_points
-        self.ids['custom'].disabled = True
-        self.ids['square'].disabled = True
-        self.ids['triangle'].disabled = True
-        self.ids['export'].disabled = False
-        self.ids['clear'].disabled = False
-
-    def draw_premade_shape(self, name):
+    def draw_premade_shape(self, name, root):
         if (name == "triangle"):
                 shape = self.triangle
         elif(name == "square"):
@@ -174,10 +84,26 @@ class DrawPopup(GridLayout):
                     line = Line(points=((shape[i][0] + d/2, shape[i][1] + d/2), 
                                   (shape[i + 1][0] + d/2, shape[i + 1][1] + d/2)))
                     self.shape_lines.append(line)
-        self.set_current_shape()
+        root.ids["choreography"].reverse_menu_state(root)
 
-    def clear_canvas(self):
-        global current_shape_points
+    def custom_mode(self, root):
+        root.ids["custom"].disabled = True
+        root.ids["square"].disabled = True
+        root.ids["triangle"].disabled = True
+        root.ids["custom_triangle"].disabled = True
+        root.ids["clear"].disabled = False
+        self.custom_mode_on = True
+
+    def triangle_custom_mode(self,root):
+        root.ids["custom"].disabled = True
+        root.ids["square"].disabled = True
+        root.ids["triangle"].disabled = True
+        root.ids["custom_triangle"].disabled = True
+        root.ids["clear"].disabled = False
+        self.triangle_custom_mode_on = True
+        self.custom_mode_on = True
+
+    def clear_canvas(self,root):
         with self.canvas:
             for e in self.shape_points:
                 self.canvas.remove(e)
@@ -185,60 +111,64 @@ class DrawPopup(GridLayout):
             for l in self.shape_lines:
                 self.canvas.remove(l)
                 self.shape_lines = []
-        current_shape_points = []
-        self.ids['custom'].disabled = False
-        self.ids['square'].disabled = False
-        self.ids['triangle'].disabled = False
-        self.ids['export'].disabled = True
-        self.ids['clear'].disabled = True
-
-
-class ShapeCanvas(BoxLayout):
-    all_points = []
-    current_point = None
-    last_point = None
-    can_draw_more = True
+        root.ids["choreography"].reverse_menu_state(root)
+        self.custom_mode_on = False
+        self.triangle_custom_mode_on = False
+        self.can_draw_more = True
 
     def on_touch_down(self, touch):
-        global custom_mode_on
-        if(self.can_draw_more and custom_mode_on and touch.y < 995): # Don't like this being hardcoded. Fix
+        if(self.can_draw_more and self.custom_mode_on and touch.y < 995): # Don't like this being hardcoded. Fix
             with self.canvas:
+                Color(1, 0 ,1)
                 d = 15
                 # Connect the start if we are close enough
-                if(len(self.all_points) > 2 and math.isclose(touch.x, self.all_points[0].pos[0], abs_tol = 100) and math.isclose(touch.y, self.all_points[0].pos[1], abs_tol = 100)):
-                        Line(points=((self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2),
-                            (self.all_points[0].pos[0] + d / 2, self.all_points[0].pos[1] + d / 2)))
+                if(len(self.shape_points) > 2 and math.isclose(touch.x, self.shape_points[0].pos[0], abs_tol = 100) and math.isclose(touch.y, self.shape_points[0].pos[1], abs_tol = 100)):
+                        l = Line(points=((self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2),
+                            (self.shape_points[0].pos[0] + d / 2, self.shape_points[0].pos[1] + d / 2)))
+                        self.shape_lines.append(l)
                         self.can_draw_more = False
-                        global popup_widget_ids
-                        popup_widget_ids['export'].disabled = False
-                        global current_shape_points
-                        current_shape_points = self.all_points
+                        if(self.triangle_custom_mode_on):
+                            area = self.calculate_triangle_area()
+                            if(area <= 20000):
+                                self.notify_bad_shape()
                 else:
                 # Draw a new point
-                    e = Ellipse(pos=(touch.x - d / 2, touch.y - d / 2), size=(d, d))
-                    self.all_points.append(e)
-                    self.last_point = self.current_point
-                    self.current_point = e
+                    if(self.triangle_custom_mode_on and len(self.shape_points) == 3):
+                            return
+                    else:
+                        e = Ellipse(pos=(touch.x - d / 2, touch.y - d / 2), size=(d, d))
+                        self.shape_points.append(e)
+                        self.last_point = self.current_point
+                        self.current_point = e
 
-                    # If we have more than two. Connect to the last point.
-                    if(len(self.all_points) >= 2):
-                        Line(points=((self.last_point.pos[0] + d / 2, self.last_point.pos[1] + d / 2),
-                        (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
+                        # If we have more than two. Connect to the last point.
+                        if(len(self.shape_points) >= 2):
+                            l = Line(points=((self.last_point.pos[0] + d / 2, self.last_point.pos[1] + d / 2),
+                            (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
+                            self.shape_lines.append(l)   
+    
+    def calculate_triangle_area(self):
+        p1 = self.shape_points[0].pos
+        p2 = self.shape_points[1].pos
+        p3 = self.shape_points[2].pos
+        area = (1/2) * abs((p1[0]*(p2[1]-p3[1])) + (p2[0]*(p3[1]-p1[1])) + (p3[0]*(p1[1]-p2[1])))
+        return area
+    
+    def notify_bad_shape(self):
+        #self.clear_canvas(self.parent.root)
+        InformationPopup(_type="e", _message="Triangle size too small").open()
 
 
-class InitializePopup(GridLayout):
-    def __init__(self):
-        super(InitializePopup, self).__init__()
+class Choreography(BoxLayout):
+    def __init__(self, **kwargs):
+        super(Choreography, self).__init__(**kwargs)
 
-    def set_new_dimensions(self):
-        x = self.ids['x_input'].text
-        y = self.ids['y_input'].text
-        if(x and y):
-            global floor_dimensions_meters
-            floor_dimensions_meters = (x, y)
-            self.close_initialize_popup()
-        else:
-            print("Invalid Dimensions")
+    def reverse_menu_state(self, root):
+        root.ids['custom'].disabled = not root.ids['custom'].disabled
+        root.ids['custom_triangle'].disabled = not root.ids['custom_triangle'].disabled
+        root.ids['square'].disabled = not root.ids['square'].disabled
+        root.ids['triangle'].disabled = not root.ids['triangle'].disabled
+        root.ids['clear'].disabled = not root.ids['clear'].disabled
 
 
 class Toolbar(BoxLayout):
@@ -357,4 +287,3 @@ class Connections(BoxLayout, WirelessNetwork):
                              _message="No radio selected or available").open()
             return
         self.wifi_image.source = self._wifi_image_sources["on"]
-
