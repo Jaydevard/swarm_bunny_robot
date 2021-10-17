@@ -64,8 +64,7 @@ class SwarmGUI(App):
         Window.size = (800, 600)
         Clock.schedule_once(self.finish_init, 1)
 
-
-    def start_stop_execution(self): 
+    def start_stop_execution(self):
         global simulation_live
         if(simulation_live == False):
             widget_ids['start_stop_button'].text = "Stop Simulation"
@@ -123,12 +122,11 @@ class RobotCanvas(BoxLayout):
         print(c.GUI_REFRESH_RATE)
 
 
-
 class DrawPopup(GridLayout):
     shape_points = []
     shape_lines = []
-    triangle = ((250,150), (550, 150), (400, 450))
-    square = ((250,150), (550, 150), (550, 450), (250, 450))
+    triangle = ((250, 150), (550, 150), (400, 450))
+    square = ((250, 150), (550, 150), (550, 450), (250, 450))
 
     def __init__(self):
         super(DrawPopup, self).__init__()
