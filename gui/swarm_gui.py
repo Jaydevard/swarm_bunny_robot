@@ -10,20 +10,12 @@ from kivy.uix.button import Button
 from utils import InformationPopup
 from gui.simulation import BunnyShape
 from communication.network import WirelessNetwork
-
-
-import math  
-
-# Globals
-=======
 from kivy.uix.label import Label
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.image import Image
 from kivy.uix.spinner import Spinner
 from kivy.lang import Builder
 from utils import InformationPopup
-from gui.simulation import BunnyShape
-from communication.network import WirelessNetwork
 from custom_widgets.status_bar.statusbar import StatusBar
 from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
 from core.swarm_bunny_manager import SwarmBunnyManager
