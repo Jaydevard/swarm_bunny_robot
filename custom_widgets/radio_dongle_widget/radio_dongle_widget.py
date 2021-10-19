@@ -69,7 +69,7 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
 
     def connect_to_radio(self, *args):
         if self._spinner.text == self._SPINNER_INITIAL_TEXT:
-            InformationPopup(_type='e', _message="Select a radio dongle")
+            InformationPopup(_type='e', _message="Select a radio dongle").open()
 
         else:
             self._spinner.disabled = True

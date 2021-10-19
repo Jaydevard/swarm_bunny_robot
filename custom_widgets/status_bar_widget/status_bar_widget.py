@@ -7,6 +7,7 @@ from kivy.animation import Animation
 from kivy.properties import BoundedNumericProperty, ObjectProperty
 from kivy.uix.gridlayout import GridLayout
 from kivy.clock import Clock
+from functools import partial
 
 
 class StatusBarWidgetImage(ButtonBehavior, Image):
@@ -30,9 +31,9 @@ class StatusBarWidget(GridLayout):
         Clock.schedule_once(self.initialize_images, 2)
 
     def initialize_images(self, *args):
-        self._state_image.source = self._IMAGE_PATH + "state_charge.png"
+        self._state_image.source = self._IMAGE_PATH + "state_formation.png"
         self._wifi_image.source = self._IMAGE_PATH + "wifi_not_connected.png"
-        self._battery_image.source = self._IMAGE_PATH + "battery_charging.png"
+        self._battery_image.source = self._IMAGE_PATH + "battery_40.png"
         self._speed_image.source = self._IMAGE_PATH + "speed.png"
 
     def on_pos(self, instance, value):
@@ -56,7 +57,7 @@ class StatusBarWidget(GridLayout):
         elif image_pressed == "wifi_image":
             pass
 
-    def update_battery_level(self, value):
+    def update_battery_level(self, value, *args):
         if 0 <= value <= 10:
             self._battery_image.source = self._IMAGE_PATH + "battery_10.png"
         elif 10 < value <= 20:

@@ -1,5 +1,6 @@
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.dropdown import DropDown
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
@@ -15,6 +16,8 @@ from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
 from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWidget
 import math
 from core.constants import Constants as Cons
+from functools import partial
+
 
 
 def load_kv_files():
@@ -34,7 +37,7 @@ class SwarmGUI(App):
     """
 
 
-class RobotCanvas(BoxLayout):
+class RobotCanvas(FloatLayout):
     """
     Class RobotCanvas
     Used to initalize and display the robots
@@ -54,16 +57,20 @@ class RobotCanvas(BoxLayout):
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
         self.bind(pos=self._update_pos, size=self._update_size)
-        # Create a dict for bunny shapes
+        self._minimum_coord = self.pos
+        self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
+        self._bunny_widgets = {}
 
     def _update_pos(self, instance, pos):
         self.pos = pos
+        self._minimum_coord = self.pos
+        self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
 
     def _update_size(self, instance, size):
         self.size = size
 
-    def add_robot(self):
-        print(Cons.GUI_REFRESH_RATE)
+    def add_bunny_widget(self, _bunny_ref: object, *args):
+
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):

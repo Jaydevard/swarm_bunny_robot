@@ -7,31 +7,36 @@ from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProper
     ReferenceListProperty
 from kivy.uix.floatlayout import FloatLayout
 from kivy.clock import Clock
+from kivy.uix.button import ButtonBehavior
+from core.constants import Constants as Cons
 
 
-class BunnyWidget(Widget):
-    IMAGE_PATH = "atlas://custom_widgets/bunny_widget/images/bunny_widget"
-    background_image_source = StringProperty(IMAGE_PATH + "/bunny_widget_active_blue")
-    battery_percentage_label = ObjectProperty()
-    pos_x = BoundedNumericProperty(0.0, min=0.0, max=1.0, errorvalue=0.0)
-    pos_y = BoundedNumericProperty(1.0, min=0.0, max=1.0, errorvalue=0.0)
-    position = ReferenceListProperty(pos_x, pos_y)
+class BunnyWidget(Image, ButtonBehavior):
+    _bunny_state = ObjectProperty()
 
-    def __init__(self, *args, **kwargs, ):
-        super(BunnyWidget, self).__init__(**kwargs)
-        self.id = kwargs.get("id")
-        Clock.schedule_interval(self.move, 2)
+    def __init__(self, **kw):
+        super(BunnyWidget, self).__init__(**kw)
+        self._IMAGE_PATH = "atlas://custom_widgets/bunny_widget/images/bunny_widget/"
+        Clock.schedule_once(self._initialize_bunny, 2)
 
-    def show_battery_percentage(self):
-        self.battery_percentage_label.text = f"{random.uniform(0, 1)}"
+    def _initialize_bunny(self):
+        self.source = self._IMAGE_PATH + "active"
 
-    def clear_battery_percentage(self):
-        self.battery_percentage_label.text = ""
+    def on__bunny_state(self):
+        print("state changed!!")
 
-    def change_state(self, state):
-        self._background_image_source = self.IMAGE_PATH + "/bunny_widget_active_blue"
+    def __setitem__(self, key, value):
+        if key == "x":
+            self.pos[0] = value
+        elif key == "y":
+            self.pos[1] = value
+        elif key == "state":
+            if value not in Cons.BUNNY_STATES:
+                print(f"incorrect state {value}")
+                raise ValueError
+            else:
+                self._bunny_state = value
+        elif key == "size":
+            self.size = value
 
-    def move(self, *args):
-        self.pos = (self.x + random.randint(0, 10), self.y + random.randint(0, 20))
-        print("moving")
 
