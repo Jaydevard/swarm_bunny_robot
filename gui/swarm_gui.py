@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 import pathlib
+=======
+import random
+
+>>>>>>> 3c30194ebb305e1f1726d83b4765765ba059fc66
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.dropdown import DropDown
 from kivy.clock import Clock
 from kivy.properties import ObjectProperty
@@ -16,7 +22,11 @@ from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
 from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWidget
 import math
 from core.constants import Constants as Cons
+<<<<<<< HEAD
 from pathlib import Path
+=======
+from functools import partial
+>>>>>>> 3c30194ebb305e1f1726d83b4765765ba059fc66
 
 
 def load_kv_files():
@@ -38,7 +48,7 @@ class SwarmGUI(App):
     """
 
 
-class RobotCanvas(BoxLayout):
+class RobotCanvas(FloatLayout):
     """
     Class RobotCanvas
     Used to initalize and display the robots
@@ -52,22 +62,44 @@ class RobotCanvas(BoxLayout):
     custom_mode_on = False
     triangle_custom_mode_on = False
 
-    triangle = ((500,150), (800, 150), (650, 450))
-    square = ((250,150), (550, 150), (550, 450), (250, 450))
+    triangle = ((500, 150), (800, 150), (650, 450))
+    square = ((250, 150), (550, 150), (550, 450), (250, 450))
 
     def __init__(self, **kwargs):
         super(RobotCanvas, self).__init__(**kwargs)
         self.bind(pos=self._update_pos, size=self._update_size)
-        # Create a dict for bunny shapes
+        self._minimum_coord = self.pos
+        self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
+        self._bunny_widgets = {}
+        self.add_bunny_widget(bunny_uid="bunny1")
+        Clock.schedule_once(self._update_bunny_positions, 0.5)
 
     def _update_pos(self, instance, pos):
         self.pos = pos
+        self._minimum_coord = self.pos
+        self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
+        self._update_bunny_positions()
+
+    def _map_pos(self, dimension: str, scale):
+        dimension_ref = {"x": 0, "y": 1}
+        if dimension in ("x", "y") and 0 <= scale <= 1:
+            return scale*(self._maximum_coord[dimension_ref[dimension]] - self._minimum_coord[dimension_ref[dimension]]) \
+                   + self._minimum_coord[dimension_ref[dimension]]
 
     def _update_size(self, instance, size):
         self.size = size
 
-    def add_robot(self):
-        print(Cons.GUI_REFRESH_RATE)
+    def add_bunny_widget(self, bunny_uid: str):
+        self._bunny_widgets[bunny_uid] = BunnyWidget(_id=bunny_uid)
+        self._update_bunny_positions()
+        self.add_widget(self._bunny_widgets[bunny_uid])
+
+    def _update_bunny_positions(self, *args):
+        for bunny_widget in self._bunny_widgets.values():
+            pos_x, pos_y = self._map_pos("x", 0.9), self._map_pos("y", 0.9)
+            bunny_widget["x"], bunny_widget["y"] = pos_x, pos_y
+            bunny_widget["size_hint"] = (0.1, 0.1)
+            bunny_widget["state"] = "formation"
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):

@@ -1,16 +1,9 @@
 #:kivy 2.0
 
 <BunnyWidget>:
-    pos: self.pos_x*self.pos[0], self.pos_y*self.pos[1]
-    battery_percentage_label: battery_percentage_label
-    Image:
-        source: self.parent.background_image_source
-        keep_ratio: True
-        allow_stretch: True
-    Label:
-        id: battery_percentage_label
-        text: "Help!"
-        color: (1, 1, 1,1)
+    pos: self.pos
+    size: self.size
+
 
 
 
