@@ -1,3 +1,4 @@
+import pathlib
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.dropdown import DropDown
@@ -15,12 +16,15 @@ from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
 from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWidget
 import math
 from core.constants import Constants as Cons
+from pathlib import Path
 
 
 def load_kv_files():
-    Builder.load_file("custom_widgets\\status_bar_widget\\statusbarwidget.kv")
-    Builder.load_file("custom_widgets\\bunny_widget\\bunnywidget.kv")
-    Builder.load_file("custom_widgets\\radio_dongle_widget\\radiodonglewidget.kv")
+    custom_widgets_dir_path = Path("custom_widgets")
+    
+    Builder.load_file(str(custom_widgets_dir_path / "bunny_widget" / "bunnywidget.kv"))
+    Builder.load_file(str(custom_widgets_dir_path / "status_bar_widget" / "statusbarwidget.kv"))
+    Builder.load_file(str(custom_widgets_dir_path / "radio_dongle_widget" / "radiodonglewidget.kv"))
 
 
 load_kv_files()

@@ -10,6 +10,7 @@ from kivy.clock import Clock
 
 
 class BunnyWidget(Widget):
+
     IMAGE_PATH = "atlas://custom_widgets/bunny_widget/images/bunny_widget"
     background_image_source = StringProperty(IMAGE_PATH + "/bunny_widget_active_blue")
     battery_percentage_label = ObjectProperty()
@@ -22,16 +23,8 @@ class BunnyWidget(Widget):
         self.id = kwargs.get("id")
         Clock.schedule_interval(self.move, 2)
 
-    def show_battery_percentage(self):
-        self.battery_percentage_label.text = f"{random.uniform(0, 1)}"
-
-    def clear_battery_percentage(self):
-        self.battery_percentage_label.text = ""
-
     def change_state(self, state):
-        self._background_image_source = self.IMAGE_PATH + "/bunny_widget_active_blue"
+        self._background_image_source = self.IMAGE_PATH + "/bunny_widget_blue"
 
-    def move(self, *args):
-        self.pos = (self.x + random.randint(0, 10), self.y + random.randint(0, 20))
-        print("moving")
+
 
