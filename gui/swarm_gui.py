@@ -1,9 +1,4 @@
-<<<<<<< HEAD
-import pathlib
-=======
-import random
 
->>>>>>> 3c30194ebb305e1f1726d83b4765765ba059fc66
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -22,11 +17,8 @@ from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
 from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWidget
 import math
 from core.constants import Constants as Cons
-<<<<<<< HEAD
 from pathlib import Path
-=======
-from functools import partial
->>>>>>> 3c30194ebb305e1f1726d83b4765765ba059fc66
+
 
 
 def load_kv_files():
