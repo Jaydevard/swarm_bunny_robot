@@ -1,4 +1,6 @@
 
+import random
+
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -18,7 +20,6 @@ from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWi
 import math
 from core.constants import Constants as Cons
 from pathlib import Path
-
 
 
 def load_kv_files():
@@ -91,7 +92,7 @@ class RobotCanvas(FloatLayout):
             pos_x, pos_y = self._map_pos("x", 0.9), self._map_pos("y", 0.9)
             bunny_widget["x"], bunny_widget["y"] = pos_x, pos_y
             bunny_widget["size_hint"] = (0.1, 0.1)
-            bunny_widget["state"] = "formation"
+            bunny_widget["state"] = "roam"
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):
