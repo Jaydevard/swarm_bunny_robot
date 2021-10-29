@@ -1,10 +1,7 @@
 from kivy.animation import Animation
-from kivy.uix.widget import Widget
-from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProperty, \
     ReferenceListProperty, ListProperty, NumericProperty
-from kivy.uix.floatlayout import FloatLayout
 from kivy.clock import Clock
 from kivy.uix.button import ButtonBehavior
 from core.constants import Constants as Cons
@@ -19,7 +16,6 @@ class BunnyWidget(Image, ButtonBehavior):
         self._IMAGE_PATH = "atlas://custom_widgets/bunny_widget/images/bunny_widget"
         Clock.schedule_once(self._initialize_bunny, 1)
         self._id = uid
-        self._normalized_pos = [0, 0]
 
     def _initialize_bunny(self, *args):
         self.size_hint = (0.1, 0.1)
@@ -30,15 +26,12 @@ class BunnyWidget(Image, ButtonBehavior):
     
     # rotation_angle_callback
     def on__angle(self, instance, value):
-        pass
-        
+        if value == 360:
+            instance.angle = 0
+           
 
     def __setitem__(self, key, value):
-        if key == "x":
-            self.pos[0] = value
-        elif key == "y":
-            self.pos[1] = value
-        elif key == "state":
+        if key == "state":
             if value not in Cons.BUNNY_STATES:
                 print(f"incorrect state {value}")
                 raise ValueError
@@ -46,11 +39,8 @@ class BunnyWidget(Image, ButtonBehavior):
                 self._bunny_state = value
         elif key == "size_hint":
             self.size_hint = value
-        elif key == "normalized_pos":
-            self._normalized_pos = value
         elif key == "theta":
-            self._angle = value
-            anim = Animation(_angle=value, 5)
+            anim = Animation(_angle=360, duration=2)
             anim.start(self)
 
     

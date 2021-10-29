@@ -74,9 +74,16 @@ class RobotCanvas(FloatLayout):
         self.add_bunny_widget(uid="bunny_1")
         # change the formation of the bunny to charge
         Clock.schedule_once(partial(self.update_bunny_state, "bunny_1", "charge"), 5)
-        # rotate the bunny to 45 degrees
+        # rotate the bunny to 270 degrees
         Clock.schedule_once(partial(self.update_bunny_position, "bunny_1", {"theta": 270}), 7)
 
+
+    def transmitter_position(self, pos):
+        """
+        sets the transmitter's position
+        """
+        pass
+        
 
 
     def add_bunny_widget(self, uid):
@@ -91,10 +98,7 @@ class RobotCanvas(FloatLayout):
         """
         bunny = self._bunny_widgets[bunny_uid]
         for key in position.keys():
-            if key == "x" or key == "y":
-                bunny[key] = self._map_pos(bunny, key, position[key])
-            else:
-                bunny[key] = position[key]
+            pass
 
     def update_bunny_state(self, bunny_uid, state: str, *args):
         """
@@ -108,16 +112,11 @@ class RobotCanvas(FloatLayout):
         self.pos = pos
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
+        for bunny in self._bunny_widgets.values():
+            bunny.pos_hint = {"center_x": 1.0, "center_y": 1.0}
 
     def _update_size(self, instance, size):
         self.size = size
-    
-    def _map_pos(self, bunny: BunnyWidget, dimension: str, scale):
-        ax_ref = {"x": 0, "y": 1}
-        if dimension in ("x", "y") and 0 <= scale <= 1:
-            return scale*((self._maximum_coord[ax_ref[dimension]] - bunny.size[ax_ref[dimension]]) - self._minimum_coord[ax_ref[dimension]]) \
-                   + self._minimum_coord[ax_ref[dimension]]
-
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):
