@@ -47,11 +47,4 @@ class BunnyWidget(Image, ButtonBehavior):
     @property
     def id(self):
         return self._id
-    
-    @property
-    def normalized_pos(self):
-        return self._normalized_pos
 
-    @property
-    def rotation_angle(self):
-        return self._rotation_angle
