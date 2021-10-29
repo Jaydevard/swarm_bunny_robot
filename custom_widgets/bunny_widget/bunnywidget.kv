@@ -3,7 +3,16 @@
 <BunnyWidget>:
     pos: self.pos
     size: self.size
+    canvas.before:
+        PushMatrix
+        Rotate:
+            angle: self._angle
+            axis: 0, 0, 1
+            origin: self.center
+    canvas.after:
+        PopMatrix
 
+    
 
 
 

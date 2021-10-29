@@ -125,11 +125,13 @@ BoxLayout:
                             orientation: "vertical"
                             # Top Layout for radio dongle
                             RadioDongleWidget:
+                                id: radio_dongle_widget
                                 size_hint: 1, 0.1
                                 pos_hint: {"top": 1}
 
                             # Bottom Layout for Radio Channels
                             BoxLayout:
+                                id: radio_channels_widget
                                 orientation: "horizontal"
                                 size_hint: 1, 1
                                 pos_hint: {"top": 1}
@@ -143,6 +145,7 @@ BoxLayout:
                                 orientation: "vertical"
                                 pos_hint: {"center_x":0.5, "center_y": 0.5}
                                 StatusBarWidget:
+                                    id: status_bar_widget
                                     size_hint: 1, 1
                                     pos_hint: {"right": 1}
 

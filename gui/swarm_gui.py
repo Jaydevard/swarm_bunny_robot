@@ -9,7 +9,6 @@ from kivy.clock import Clock
 from kivy.properties import ObjectProperty
 from kivy.core.window import Window
 from kivy.graphics import Color, Ellipse, Line
-from kivy.config import Config
 from kivy.uix.button import Button
 from kivy.lang import Builder
 from utils import InformationPopup
@@ -20,6 +19,7 @@ from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWi
 import math
 from core.constants import Constants as Cons
 from pathlib import Path
+from functools import partial
 
 
 def load_kv_files():
@@ -64,35 +64,60 @@ class RobotCanvas(FloatLayout):
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
         self._bunny_widgets = {}
-        self.add_bunny_widget(bunny_uid="bunny1")
-        Clock.schedule_once(self._update_bunny_positions, 0.5)
+        # force a pos update
+        self.pos = (0 ,0)
+        
+        # for testing purposes
+        Clock.schedule_once(partial(self.update_bunny_position, "bunny_1", {"x": 0.9, "y": 0.9}), 2)
+        
+        # add a Bunny
+        self.add_bunny_widget(uid="bunny_1")
+        # change the formation of the bunny to charge
+        Clock.schedule_once(partial(self.update_bunny_state, "bunny_1", "charge"), 5)
+        # rotate the bunny to 45 degrees
+        Clock.schedule_once(partial(self.update_bunny_position, "bunny_1", {"theta": 270}), 7)
+
+
+
+    def add_bunny_widget(self, uid):
+        self._bunny_widgets[uid] = BunnyWidget(uid=uid)
+        self.add_widget(self._bunny_widgets[uid])
+
+    def update_bunny_position(self, bunny_uid, position: dict, *args):
+        """
+        :param  bunny_uid: id of bunny, e.g "bunny_1"
+                position: a dict containing pos: e.g position = {"x": 500, "y": 760, "theta":45}
+        raises KeyError if bunny is not present
+        """
+        bunny = self._bunny_widgets[bunny_uid]
+        for key in position.keys():
+            if key == "x" or key == "y":
+                bunny[key] = self._map_pos(bunny, key, position[key])
+            else:
+                bunny[key] = position[key]
+
+    def update_bunny_state(self, bunny_uid, state: str, *args):
+        """
+        :param  bunny_uid: id of bunny, e.g "bunny_2"
+                state - should be from {"idle", "formation", "charge", "roam"}
+        raises KeyError if bunny is not present
+        """
+        self._bunny_widgets[bunny_uid]["state"] = state
 
     def _update_pos(self, instance, pos):
         self.pos = pos
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
-        self._update_bunny_positions()
-
-    def _map_pos(self, dimension: str, scale):
-        dimension_ref = {"x": 0, "y": 1}
-        if dimension in ("x", "y") and 0 <= scale <= 1:
-            return scale*(self._maximum_coord[dimension_ref[dimension]] - self._minimum_coord[dimension_ref[dimension]]) \
-                   + self._minimum_coord[dimension_ref[dimension]]
 
     def _update_size(self, instance, size):
         self.size = size
+    
+    def _map_pos(self, bunny: BunnyWidget, dimension: str, scale):
+        ax_ref = {"x": 0, "y": 1}
+        if dimension in ("x", "y") and 0 <= scale <= 1:
+            return scale*((self._maximum_coord[ax_ref[dimension]] - bunny.size[ax_ref[dimension]]) - self._minimum_coord[ax_ref[dimension]]) \
+                   + self._minimum_coord[ax_ref[dimension]]
 
-    def add_bunny_widget(self, bunny_uid: str):
-        self._bunny_widgets[bunny_uid] = BunnyWidget(_id=bunny_uid)
-        self._update_bunny_positions()
-        self.add_widget(self._bunny_widgets[bunny_uid])
-
-    def _update_bunny_positions(self, *args):
-        for bunny_widget in self._bunny_widgets.values():
-            pos_x, pos_y = self._map_pos("x", 0.9), self._map_pos("y", 0.9)
-            bunny_widget["x"], bunny_widget["y"] = pos_x, pos_y
-            bunny_widget["size_hint"] = (0.1, 0.1)
-            bunny_widget["state"] = "roam"
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):
@@ -290,29 +315,4 @@ class Toolbar(BoxLayout):
 
 
 class Connections(BoxLayout, WirelessNetwork):
-    connect_button = ObjectProperty()
-    search_button = ObjectProperty()
-    wifi_image = ObjectProperty()
-    search_and_connect_box = ObjectProperty()
-    radio_selection = ObjectProperty()
-
-    def __init__(self, **kwargs):
-        super(Connections, self).__init__(**kwargs)
-        self._radio_dongle = self.search_for_radio_dongle()
-        self._wifi_image_sources = {"on": "images\\wifi\\wifi_on.png",
-                                    "off": "images\\wifi\\wifi_off.png"}
-        self._selected_radio_dongle = None
-
-    def search_button_press(self):
-        self.search_button.text = "[b][i]Searching...[/i][/b]"
-
-    def update_radio_dongle_selection(self, selected_radio):
-        print(selected_radio)
-        self._selected_radio_dongle = selected_radio
-
-    def connect_button_press(self):
-        if self._selected_radio_dongle is None:
-            InformationPopup(_type="e",
-                             _message="No radio selected or available").open()
-            return
-        self.wifi_image.source = self._wifi_image_sources["on"]
+    pass

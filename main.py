@@ -1,5 +1,3 @@
-import time
-
 from gui.swarm_gui import SwarmGUI
 
 
