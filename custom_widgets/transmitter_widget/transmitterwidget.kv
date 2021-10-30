@@ -1,8 +1,12 @@
 #:kivy 2.0
 
-<TransmitterWwidget>:
-    canvas.before:
-        Rectangle:
-            source: self._transmitter_image
-            
+<TransmitterWidget>:
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 1000000
+    drag_distance: 0
+
+
+    
+
+
 
