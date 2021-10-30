@@ -1,4 +1,5 @@
 #:kivy 2.0
+
 <StatusBarWidget>:
     canvas.before:
         Rectangle:
@@ -75,6 +76,70 @@
             pos: self.pos
             size: self.size
             on_release: self.parent.parent.on_image_press(self.name)
+
+
+<BunnyWidget>:
+    pos: self.pos
+    size: self.size
+    canvas.before:
+        PushMatrix
+        Rotate:
+            angle: self._angle
+            axis: 0, 0, 1
+            origin: self.center
+    canvas.after:
+        PopMatrix
+
+<RadioDongleWidget>:
+    _wifi_image: _wifi_image
+    _spinner: _spinner
+    _search_button: _search_button
+    _connect_button: _connect_button
+
+    size_hint: 1, 1
+    orientation: "horizontal"
+    # Wifi Image
+    Image:
+        id: _wifi_image
+        size_hint: 0.3, 1
+        pos_hint: {"center_x": 0.5, "center_y":0.5}
+    # Radio Options Spinner
+    Spinner:
+        id: _spinner
+        size_hint: 1, 1
+        markup: True
+        size_hint: 1, 1
+        font_size: '16sp'
+        pos_hint: {"left": 1}
+
+    GridLayout:
+        rows: 2
+        cols: 1
+        size_hint: (1, 1)
+        Button:
+            id: _search_button
+            size_hint: 1, 1
+            text: "[b][i]Search[/i][/b]"
+            markup: True
+            font_size: '17sp'
+        Button:
+            id: _connect_button
+            size_hint: 1, 1
+            text: "[b][i]Connect[i][/b]"
+            font_size: '17sp'
+            markup: True
+
+<TransmitterWidget>:
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 1000000
+    drag_distance: 0
+
+
+
+
+
+
+
 
 
 

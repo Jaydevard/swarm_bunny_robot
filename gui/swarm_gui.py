@@ -13,26 +13,11 @@ from kivy.uix.button import Button
 from kivy.lang import Builder
 from utils import InformationPopup
 from communication.network import WirelessNetwork
-from custom_widgets.status_bar_widget.status_bar_widget import StatusBarWidget
-from custom_widgets.bunny_widget.bunny_widget import BunnyWidget
-from custom_widgets.radio_dongle_widget.radio_dongle_widget import RadioDongleWidget
-from custom_widgets.transmitter_widget.transmitter_widget import TransmitterWidget
+from custom_widgets.custom_widgets import *
 import math
 from core.constants import Constants as Cons
 from pathlib import Path
 from functools import partial
-
-
-def load_kv_files():
-    custom_widgets_dir_path = Path("custom_widgets")
-    
-    Builder.load_file(str(custom_widgets_dir_path / "bunny_widget" / "bunnywidget.kv"))
-    Builder.load_file(str(custom_widgets_dir_path / "status_bar_widget" / "statusbarwidget.kv"))
-    Builder.load_file(str(custom_widgets_dir_path / "radio_dongle_widget" / "radiodonglewidget.kv"))
-    Builder.load_file(str(custom_widgets_dir_path / "transmitter_widget" / "transmitterwidget.kv"))
-
-
-load_kv_files()
 
 
 class SwarmGUI(App):
@@ -79,15 +64,12 @@ class RobotCanvas(FloatLayout):
         # rotate the bunny to 270 degrees
         Clock.schedule_once(partial(self.update_bunny_position, "bunny_1", {"theta": 270}), 7)
 
-
     def set_transmitter_position(self, pos):
         """
         sets the transmitter's position
         """
         pass
         
-
-
     def add_bunny_widget(self, uid):
         self._bunny_widgets[uid] = BunnyWidget(uid=uid)
         self.add_widget(self._bunny_widgets[uid])
