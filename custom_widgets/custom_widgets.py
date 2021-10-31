@@ -2,7 +2,6 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
-from kivy.uix.button import ButtonBehavior
 from functools import partial
 from utils import InformationPopup
 from pathlib import Path
