@@ -276,7 +276,6 @@ class DragAndResizeRect(DragBehavior, Widget):
             else:
                 self._border_coord = [0, 0, 0, 0]
 
-    
     def on_touch_down(self, touch):
         self.pos_hint = {}
         
@@ -362,7 +361,8 @@ class DragAndResizeRect(DragBehavior, Widget):
                     if self.size_hint_x is None:
                         self.width = xx
                     else:
-                        self.size_hint_x = xx / self.parent.height
+                        self.size_hint_x = xx / self.parent.width
+                        self.width = xx
 
             elif touch.ud["edit_mode"] == 'nw':
                 if yy > 0:
@@ -391,7 +391,8 @@ class DragAndResizeRect(DragBehavior, Widget):
                     if self.size_hint_x is None:
                         self.width = xx
                     else:
-                        self.size_hint_x = xx / self.parent.height
+                        self.size_hint_x = xx / self.parent.width
+                        self.width = xx
             
             elif touch.ud["edit_mode"] == 'se':
                 if self.height - yy > 0:
@@ -405,7 +406,8 @@ class DragAndResizeRect(DragBehavior, Widget):
                     if self.size_hint_x is None:
                         self.width = xx
                     else:
-                        self.size_hint_x = xx / self.parent.height
+                        self.size_hint_x = xx / self.parent.width
+                        self.width = xx
             
             elif touch.ud["edit_mode"] == 'sw':
                 if self.width - xx > 0:
@@ -425,9 +427,6 @@ class DragAndResizeRect(DragBehavior, Widget):
                 
             return super(DragAndResizeRect, self).on_touch_move(touch)
         return super(DragAndResizeRect, self).on_touch_move(touch)
-
-
-
 
     def on_touch_up(self, touch):
         Window.set_system_cursor('arrow')
