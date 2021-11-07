@@ -8,11 +8,14 @@ from pathlib import Path
 from kivy.uix.behaviors import DragBehavior
 from kivy.animation import Animation
 from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProperty, \
-    ReferenceListProperty, ListProperty, NumericProperty
+    ReferenceListProperty, ListProperty, NumericProperty, BooleanProperty
+from kivy.uix.actionbar import ActionBar, ActionItem
 from core.constants import Constants as Cons
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.gridlayout import GridLayout
+from kivy.core.window import Window
 from kivy.lang import Builder
+import random
 import os
 
 Builder.load_file(str(Path(os.getcwd()) / "custom_widgets" / "custom_widgets.kv"))
@@ -220,5 +223,216 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
             InformationPopup(_type='e', _message="Connection to radio could not be established!!").open()
             self._active_radio_dongle = None
 
+
+class BunnyActionBar(ActionBar):
+
+    # need to be completed
+    connected_checkbox = ObjectProperty()
+    charge_checkbox = ObjectProperty()
+    roam_checkbox = ObjectProperty()
+    formation_checkbox = ObjectProperty()
+    idle_checkbox = ObjectProperty()
+
+    def __init__(self, uid=None, **kwargs):
+        super().__init__(**kwargs)
+        self._id = uid
+
+    def on_pos(self, item, value):
+        self.pos = value
+
+    @property
+    def id(self):
+        return self._id
+
+    
+class DragAndResizeRect(DragBehavior, Widget):
+    _border_coord = ListProperty([0 ,0, 0, 0])
+    _border_width = NumericProperty(2)
+    _draw_border = BooleanProperty(True)
+    _fill_color = ListProperty([1, 0, 1, 1])
+    _border_color = ListProperty([0, 0, 1, 1])
+    _edit_mode = StringProperty("")
+    
+    def __init__(self, **kwargs):
+        super(DragAndResizeRect, self).__init__(**kwargs)
+
+    def on_pos(self, item, pos):
+        self.pos = pos
+        if self._draw_border:
+            self._border_coord = [self._border_width+self.x, 
+                                  self.y + self._border_width,  
+                                  self.width - 2 * self._border_width, 
+                                  self.height - 2 * self._border_width]
+        else:
+            self._border_coord = [0, 0, 0, 0]
+
+    def on_size(self, item, size):
+            self.size = size
+            if self._draw_border:
+                self._border_coord = [self._border_width+self.x, 
+                                      self.y + self._border_width,  
+                                      self.width - 2 * self._border_width, 
+                                      self.height - 2 * self._border_width]
+            else:
+                self._border_coord = [0, 0, 0, 0]
+
+    
+    def on_touch_down(self, touch):
+        self.pos_hint = {}
+        
+        if not self.collide_point(*touch.pos):
+            return super(DragAndResizeRect, self).on_touch_up(touch)
+            
+        diff = self._border_width * 2
+        xx, yy  = self.to_widget(*touch.pos, relative=True)
+        
+        if touch.button == "left":
+            self._edit_mode = "pos"
+            
+            if self.height - yy < diff:
+                self._edit_mode = 'top'
+                if self.width - xx < diff:
+                    self._edit_mode = 'ne'
+                    Window.set_system_cursor('crosshair')
+                elif xx < diff:
+                    self._edit_mode = 'nw'
+                    Window.set_system_cursor('crosshair')
+                else:
+                    Window.set_system_cursor('size_ns')
+
+            elif yy < diff:
+                self._edit_mode = 'bottom'
+                if self.width - xx < diff:
+                    self._edit_mode = 'se'         
+                    Window.set_system_cursor('crosshair') 
+                elif xx < diff:
+                    self._edit_mode = 'sw'
+                    Window.set_system_cursor('crosshair') 
+                else:
+                    Window.set_system_cursor('size_ns')
+
+            elif self.width - xx < diff:
+                self._edit_mode = 'right'
+                Window.set_system_cursor('size_we')
+            
+            elif xx < diff:
+                self._edit_mode = 'left'
+                Window.set_system_cursor('size_we')
+            else:
+                Window.set_system_cursor('crosshair')
+            touch.ud['edit_mode'] = self._edit_mode
+            if self._edit_mode != 'pos':
+                touch.ud['size_node'] = self
+                return True
+
+        return super(DragAndResizeRect, self).on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        if 'size_node' in touch.ud.keys():
+            xx, yy = self.to_widget(*touch.pos, relative=True)
+            if touch.ud["edit_mode"] == 'top':
+                if yy > 0:
+                    if self.size_hint_y is None:
+                        self.height = min(yy, self.parent.height)
+                    else:
+                        self.size_hint_y = yy / self.parent.height
+                        if self.size_hint_y >= 1:
+                            self.size_hint_y = 1
+            
+            elif touch.ud["edit_mode"] == "bottom":
+                if self.height - yy > 0:
+                    if self.size_hint_y is None:
+                        self.height -= yy
+                        self.y += yy
+                    else:
+                        self.size_hint_y = (self.height - yy) / self.parent.height
+                        self.y += yy
+            
+            elif touch.ud["edit_mode"] == 'left':
+                if self.width - xx > 0:
+                    if self.size_hint is None:
+                        self.width -= xx
+                        self.x += xx
+                    else:
+                        self.size_hint_x = min(1, (self.width - xx) / self.parent.width)
+                        self.x += xx
+            
+            elif touch.ud["edit_mode"] == 'right':
+                if xx > 0:
+                    if self.size_hint_x is None:
+                        self.width = xx
+                    else:
+                        self.size_hint_x = xx / self.parent.height
+
+            elif touch.ud["edit_mode"] == 'nw':
+                if yy > 0:
+                    if self.size_hint_y is None:
+                        self.height = min(yy, self.parent.height)
+                    else:
+                        self.size_hint_y = yy / self.parent.height
+                        if self.size_hint_y >= 1:
+                            self.size_hint_y = 1
+                if self.width - xx > 0:
+                    if self.size_hint is None:
+                        self.width -= xx
+                        self.x += xx
+                    else:
+                        self.size_hint_x = min(1, (self.width - xx) / self.parent.width)
+                        self.x += xx
+            elif touch.ud["edit_mode"] == 'ne':
+                if yy > 0:
+                    if self.size_hint_y is None:
+                        self.height = min(yy, self.parent.height)
+                    else:
+                        self.size_hint_y = yy / self.parent.height
+                        if self.size_hint_y >= 1:
+                            self.size_hint_y = 1
+                if xx > 0:
+                    if self.size_hint_x is None:
+                        self.width = xx
+                    else:
+                        self.size_hint_x = xx / self.parent.height
+            
+            elif touch.ud["edit_mode"] == 'se':
+                if self.height - yy > 0:
+                    if self.size_hint_y is None:
+                        self.height -= yy
+                        self.y += yy
+                    else:
+                        self.size_hint_y = (self.height - yy) / self.parent.height
+                        self.y += yy
+                if xx > 0:
+                    if self.size_hint_x is None:
+                        self.width = xx
+                    else:
+                        self.size_hint_x = xx / self.parent.height
+            
+            elif touch.ud["edit_mode"] == 'sw':
+                if self.width - xx > 0:
+                    if self.size_hint is None:
+                        self.width -= xx
+                        self.x += xx
+                    else:
+                        self.size_hint_x = min(1, (self.width - xx) / self.parent.width)
+                        self.x += xx
+                if self.height - yy > 0:
+                    if self.size_hint_y is None:
+                        self.height -= yy
+                        self.y += yy
+                    else:
+                        self.size_hint_y = (self.height - yy) / self.parent.height
+                        self.y += yy
+                
+            return super(DragAndResizeRect, self).on_touch_move(touch)
+        return super(DragAndResizeRect, self).on_touch_move(touch)
+
+
+
+
+    def on_touch_up(self, touch):
+        Window.set_system_cursor('arrow')
+        self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
+                         "y": (self.y - self.parent.y) / self.parent.height}
+        return super(DragAndResizeRect, self).on_touch_up(touch)
 
 

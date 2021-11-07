@@ -1,7 +1,7 @@
 #:kivy 2.0
 
 <StatusBarWidget>:
-    canvas.before:
+    canvas:
         Rectangle:
             size: self.size
             pos: self.pos
@@ -133,6 +133,47 @@
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 1000000
     drag_distance: 0
+
+
+
+<BunnyActionBar>:
+
+    ActionView:
+        ActionPrevious:
+            title: "Connection Status"
+            with_previous: False
+
+        ActionButton:
+            text: "Connected"
+        
+        ActionButton:
+            text: "State"
+        
+
+<DragAndResizeRect>:
+    # drag definitions
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 10000000
+    drag_distance: 0
+
+    
+    canvas.after:
+        Color:
+            rgba: self._fill_color
+        Rectangle:
+            size: self.size
+            pos: self.pos  
+        
+        Color:
+            rgba: self._border_color
+        Line:
+            cap: "square"
+            joint: 'miter'
+            width: self._border_width
+            rectangle: self._border_coord
+                      
+
+
 
 
 

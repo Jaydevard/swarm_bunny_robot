@@ -6,6 +6,8 @@ from kivy.properties import ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
+from kivy.clock import Clock
+from functools import partial
 
 
 class DataHandler(queue.Queue):
@@ -78,6 +80,7 @@ class InformationPopup(Popup):
 
         self._main_layout.add_widget(self._message_label)
         self.add_widget(self._main_layout)
+
 
 
 if __name__ == "__main__":

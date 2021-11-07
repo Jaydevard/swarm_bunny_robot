@@ -55,14 +55,16 @@ class RobotCanvas(FloatLayout):
         self.pos = (0 ,0)
         
         # for testing purposes
-        Clock.schedule_once(partial(self.update_bunny_position, "bunny_1", {"x": 0.9, "y": 0.9}), 2)
-        
+              
         # add a Bunny
         self.add_bunny_widget(uid="bunny_1")
         # change the formation of the bunny to charge
-        Clock.schedule_once(partial(self.update_bunny_state, "bunny_1", "charge"), 5)
+        Clock.schedule_once(partial(self.update_bunny_state, "bunny_1", "charge"), 1)
         # rotate the bunny to 270 degrees
-        Clock.schedule_once(partial(self.update_bunny_position, "bunny_1", {"theta": 270}), 7)
+        Clock.schedule_interval(partial(self.update_bunny_rotation, 
+                                        "bunny_1", 
+                                         45), 25)
+
 
     def set_transmitter_position(self, pos):
         """
@@ -73,6 +75,7 @@ class RobotCanvas(FloatLayout):
     def add_bunny_widget(self, uid):
         self._bunny_widgets[uid] = BunnyWidget(uid=uid)
         self.add_widget(self._bunny_widgets[uid])
+        self._bunny_widgets[uid].pos_hint = {"center_x": 0.5, "center_y": 0.5}
 
     def update_bunny_position(self, bunny_uid, position: dict, *args):
         """
@@ -92,12 +95,18 @@ class RobotCanvas(FloatLayout):
         """
         self._bunny_widgets[bunny_uid]["state"] = state
 
+    def update_bunny_rotation(self, bunny_uid: str, rotation_angle: float or int, *args):
+        """
+        :param bunny_uid: unique id of bunny
+               rotation_angle: angle that bunny rotates to
+        """
+        self._bunny_widgets[bunny_uid]["theta"] = rotation_angle
+
     def _update_pos(self, instance, pos):
         self.pos = pos
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
-        for bunny in self._bunny_widgets.values():
-            bunny.pos_hint = {"center_x": 1.0, "center_y": 1.0}
+
 
     def _update_size(self, instance, size):
         self.size = size
@@ -183,6 +192,7 @@ class RobotCanvas(FloatLayout):
                             l = Line(points=((self.last_point.pos[0] + d / 2, self.last_point.pos[1] + d / 2),
                             (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
                             self.shape_lines.append(l)   
+        return super(RobotCanvas, self).on_touch_down(touch)
     
     def calculate_triangle_area(self):
         p1 = self.shape_points[0].pos
@@ -299,3 +309,41 @@ class Toolbar(BoxLayout):
 
 class Connections(BoxLayout, WirelessNetwork):
     pass
+
+
+
+class StatusBoard(BoxLayout):
+    scroll_view = ObjectProperty()
+    
+    def __init__(self, **kwargs):
+        super(StatusBoard, self).__init__(**kwargs)
+        Clock.schedule_once(partial(self.initialize_status_board), 2)
+
+
+    def initialize_status_board(self, *args):
+        self.add_bunny_action_bar("bunny_1")
+
+    def update_board(self, children):
+        pass
+
+    def remove_widget(self, uid: str):
+        pass
+
+    def add_bunny_action_bar(self, bunny_uid: str):
+        bunny = BunnyActionBar(uid=bunny_uid)
+        self.scroll_view.add_widget(bunny)
+        
+
+
+
+    
+ 
+
+
+
+
+
+
+
+    
+    

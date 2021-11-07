@@ -131,21 +131,48 @@ BoxLayout:
                                 size_hint: 1, 0.1
                                 pos_hint: {"top": 1}
 
-                            # Bottom Layout for Radio Channels
-                            BoxLayout:
-                                id: radio_channels_widget
-                                orientation: "horizontal"
+                            # Middle Layout for Radio Channels
+                            StatusBoard:
+                                id: status_board
+                                orientation: "vertical"
                                 size_hint: 1, 1
                                 pos_hint: {"top": 1}
-                                Image:
-                                    source: "under_construction.png"
-                                    size: self.texture_size
 
-                            # StatusBar
+                                scroll_view: scroll_view
+
+                                BoxLayout:
+                                    size_hint: 1, 0.1
+                                    pos_hint: {"top": 1}
+                                    orientation: "horizontal"
+                                    canvas.before:
+                                        Color:
+                                            rgb: 0, 0, 0, 1
+                                        Rectangle:
+                                            size: self.size
+                                            pos: self.pos
+                                    Label: 
+                                        pos_hint: {"left": 1}
+                                        size_hint: 0.1, 1
+                                        text: "  Click me!!"
+                                        pos_hint: {"left": 1}
+                                    CheckBox:
+                                        pos_hint: {"left": 0.8}
+
+                                ScrollView:
+                                    id: scroll_view
+
+
+                            # StatusBar: Bottom Layout for StatusBar
                             BoxLayout:
                                 size_hint: 1, 0.1
                                 orientation: "vertical"
                                 pos_hint: {"center_x":0.5, "center_y": 0.5}
+                                canvas.before:
+                                    Color: 
+                                        rgb: 0, 0, 0
+                                    Rectangle:
+                                        size: self.size
+                                        pos: self.pos
                                 StatusBarWidget:
                                     id: status_bar_widget
                                     size_hint: 1, 1
@@ -198,9 +225,14 @@ BoxLayout:
             canvas.before:
                 Color
                     #rgb: utils.get_color_from_hex('#D3D3D3')
-                    rgb: 0, 0, 0, 1
+                    rgb: 1, 1, 0, 1
                 Rectangle:
                     size: self.size
                     pos: self.pos
             RobotCanvas:
                 id: robot_canvas
+
+                DragAndResizeRect:
+                    pos: 0, 0
+                    size_hint: 0.1, 0.1
+                    
