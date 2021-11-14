@@ -9,6 +9,7 @@ from kivy.clock import Clock
 from kivy.properties import ObjectProperty
 from kivy.core.window import Window
 from kivy.graphics import Color, Ellipse, Line
+from kivy.graphics.instructions import InstructionGroup
 from kivy.uix.button import Button
 from kivy.lang import Builder
 from utils import InformationPopup
@@ -33,6 +34,8 @@ class RobotCanvas(FloatLayout):
     Class RobotCanvas
     Used to initalize and display the robots
     """  
+    background_color = ListProperty([1, 1, 0, 0])
+
     # Default values for sim
     current_point = None
     last_point = None
@@ -53,8 +56,7 @@ class RobotCanvas(FloatLayout):
         self._bunny_widgets = {}
         # force a pos update
         self.pos = (0 ,0)
-        
-        # for testing purposes
+         # for testing purposes
               
         # add a Bunny
         self.add_bunny_widget(uid="bunny_1")
@@ -64,18 +66,32 @@ class RobotCanvas(FloatLayout):
         Clock.schedule_interval(partial(self.update_bunny_rotation, 
                                         "bunny_1", 
                                          45), 25)
-
+        # grids
+        self.add_grid = True
+        self.gridline_widget = self.add_gridlines() if self.add_grid else None 
 
     def set_transmitter_position(self, pos):
         """
         sets the transmitter's position
         """
         pass
-        
+
+    def add_gridlines(self):
+        grid_line_widget = GridWidget()
+        grid_line_widget.pos_hint = {"x":0, "y":0}
+        grid_line_widget.size_hint = (1, 1)
+        self.add_widget(grid_line_widget)
+        return grid_line_widget
+
+    def remove_gridlines(self):
+        self.remove_widget(self.gridline_widget)
+
     def add_bunny_widget(self, uid):
-        self._bunny_widgets[uid] = BunnyWidget(uid=uid)
-        self.add_widget(self._bunny_widgets[uid])
-        self._bunny_widgets[uid].pos_hint = {"center_x": 0.5, "center_y": 0.5}
+        bunny = BunnyWidget(uid=uid)
+        self._bunny_widgets[uid] = bunny
+        bunny.size_hint = (0.05, 0.05)
+        bunny.pos_hint = {"center_x": 0.5, "center_y": 0.5}
+        self.add_widget(bunny)
 
     def update_bunny_position(self, bunny_uid, position: dict, *args):
         """
@@ -106,10 +122,13 @@ class RobotCanvas(FloatLayout):
         self.pos = pos
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
+        if self.gridline_widget is not None:
+            self.gridline_widget.update_grid()
 
 
     def _update_size(self, instance, size):
         self.size = size
+
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):
@@ -204,6 +223,9 @@ class RobotCanvas(FloatLayout):
     def notify_bad_shape(self):
         #self.clear_canvas(self.parent.root)
         InformationPopup(_type="e", _message="Triangle size too small").open()
+
+
+
 
 
 class Choreography(BoxLayout):
@@ -332,9 +354,6 @@ class StatusBoard(BoxLayout):
     def add_bunny_action_bar(self, bunny_uid: str):
         bunny = BunnyActionBar(uid=bunny_uid)
         self.scroll_view.add_widget(bunny)
-        
-
-
 
     
  

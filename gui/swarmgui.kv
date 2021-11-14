@@ -222,17 +222,22 @@ BoxLayout:
             orientation: 'vertical'
             spacing: 10
             padding: 10
-            canvas.before:
-                Color
-                    #rgb: utils.get_color_from_hex('#D3D3D3')
-                    rgb: 1, 1, 0, 1
-                Rectangle:
-                    size: self.size
-                    pos: self.pos
             RobotCanvas:
                 id: robot_canvas
+                canvas.before:
+                    Color:
+                        rgba: self.background_color
+                    Rectangle:
+                        size: self.size
+                        pos: self.pos
 
-                DragAndResizeRect:
-                    pos: 0, 0
-                    size_hint: 0.1, 0.1
-                    
+            BoxLayout:
+                size_hint: 1, 0.03
+                pos: self.pos
+                canvas.before:
+                    Color: 
+                        rgb: 1, 1, 1
+               
+                    Rectangle:
+                        size: self.size
+                        pos: self.pos

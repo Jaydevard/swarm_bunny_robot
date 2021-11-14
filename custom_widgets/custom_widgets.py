@@ -8,11 +8,12 @@ from pathlib import Path
 from kivy.uix.behaviors import DragBehavior
 from kivy.animation import Animation
 from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProperty, \
-    ReferenceListProperty, ListProperty, NumericProperty, BooleanProperty
+    ReferenceListProperty, ListProperty, NumericProperty, BooleanProperty, DictProperty
 from kivy.uix.actionbar import ActionBar, ActionItem
 from core.constants import Constants as Cons
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.gridlayout import GridLayout
+from kivy.graphics import Color, InstructionGroup, Line, Point
 from kivy.core.window import Window
 from kivy.lang import Builder
 import random
@@ -97,11 +98,7 @@ class BunnyWidget(Image, ButtonBehavior):
     def __init__(self, uid, **kwargs):
         super(BunnyWidget, self).__init__(**kwargs)
         self._IMAGE_PATH = "atlas://custom_widgets/images/bunny_widget/bunny_widget"
-        Clock.schedule_once(self._initialize_bunny, 1)
         self._id = uid
-
-    def _initialize_bunny(self, *args):
-        self.size_hint = (0.1, 0.1)
 
     # state callback
     def on__bunny_state(self, instance, value):
@@ -119,8 +116,6 @@ class BunnyWidget(Image, ButtonBehavior):
                 raise ValueError
             else:
                 self._bunny_state = value
-        elif key == "size_hint":
-            self.size_hint = value
         elif key == "theta":
             anim = Animation(_angle=360, duration=2)
             anim.start(self)
@@ -247,7 +242,7 @@ class BunnyActionBar(ActionBar):
     
 class DragAndResizeRect(DragBehavior, Widget):
     _border_coord = ListProperty([0 ,0, 0, 0])
-    _border_width = NumericProperty(2)
+    _border_width = NumericProperty(4)
     _draw_border = BooleanProperty(True)
     _fill_color = ListProperty([1, 0, 1, 1])
     _border_color = ListProperty([0, 0, 1, 1])
@@ -433,5 +428,117 @@ class DragAndResizeRect(DragBehavior, Widget):
         self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
                          "y": (self.y - self.parent.y) / self.parent.height}
         return super(DragAndResizeRect, self).on_touch_up(touch)
+
+
+class GridWidget(Widget):
+    grid_color = ListProperty([0.5, 0.2, 1, 1])
+    grid_line_thickness = NumericProperty(1)
+    grid_scale = DictProperty({"1m": 100})            # 1m represented by 100 pixels     
+    MAX_GRIDLINES = 15
+    include_points = BooleanProperty(True)
+    point_size = NumericProperty(2)
+    point_color = ListProperty([1, 0, 1, 1])
+
+    # what is the main resource for this
+    def __init__(self, **kwargs):
+        super(GridWidget, self).__init__(**kwargs)
+        self.horizontal_lines = []
+        self.vertical_lines = []
+        self.points_color = Color(*self.point_color)
+        self.points = InstructionGroup()
+        self.lines = InstructionGroup()
+        self.draw_grid()
+
+    def on_pos(self, item, value):
+        self.pos = value
+        self.update_grid()
+
+    def on_point_size(self, item, value):
+        self.points.pointsize = value
+
+    def on_grid_color(self, item, value):
+        for (color, line) in self.horizontal_lines:
+            color.rgba = value
+        for (color, line) in self.vertical_lines:
+            color.rgba = value
+
+    def on_point_color(self, item, value):
+        self.points_color.rgba = value
+
+
+    def draw_grid(self, *args):
+        
+        min_pixel = self.grid_scale["1m"]
+        # x axis
+        # Adding 15 grid lines
+        line_wp_distance = self.width// self.MAX_GRIDLINES
+        line_hp_distance = self.height//self.MAX_GRIDLINES
+        
+        for x_pos in range(int(self.x), int(self.width+self.x), line_wp_distance):
+            color = Color(*self.grid_color)
+            line = Line(points=(self.x + x_pos, self.y, self.x + x_pos, self.y+self.height))
+            self.vertical_lines.append((color, line))
+            self.lines.add(color)
+            self.lines.add(line)
+    
+        for y_pos in range(int(self.y), int(self.height+self.y), line_hp_distance):
+            if y_pos > self.height:
+                continue
+            color = Color(*self.grid_color)
+            line = Line(points=(self.x, self.y+y_pos, self.x+self.width, self.y+y_pos))
+            self.horizontal_lines.append((color, line))
+            self.lines.add(color)
+            self.lines.add(line)
+
+        self.canvas.add(self.lines)
+
+
+    def update_grid(self, *args):
+        """
+        Update the grid lines based on canvas 
+        pos adjustment
+        SET GRIDLINES TO always show 15m i.e 15 lines on one axis
+        1 line represents 1 m
+        """
+        line_wp_distance = self.width //self.MAX_GRIDLINES
+        line_hp_distance = (self.height) // self.MAX_GRIDLINES
+
+        for line_num, (color, line) in enumerate(self.vertical_lines):
+            if (line_num+1)*line_wp_distance > self.width:
+                self.lines.remove(color)
+                self.lines.remove(line)
+                self.vertical_lines.remove((color, line))
+                continue
+            line.points = ((line_num+1)*line_wp_distance + self.x, 
+                           self.y, 
+                           (line_num+1)*line_wp_distance + self.x,
+                           self.y+self.height)
+
+
+        for line_num, (color, line) in enumerate(self.horizontal_lines):
+            if (line_num+1)*line_hp_distance > self.height:
+                self.lines.remove(color)
+                self.lines.remove(line)
+                self.horizontal_lines.remove((color, line))
+                continue
+            line.points = (self.x, 
+                           self.y+(line_num+1)*line_hp_distance, 
+                           self.x+self.width,
+                           self.y+(line_num+1)*line_hp_distance)
+
+        self.points.clear()
+        
+        if self.include_points:
+            points = []
+
+            for (color_x, line_x) in self.vertical_lines:
+                for (color_y, line_y) in self.horizontal_lines:
+                    points.append(line_x.points[0])
+                    points.append(line_y.points[1])
+            self.points.add(self.points_color)
+            self.points.add(Point(points=points, pointsize=self.point_size))
+            self.canvas.add(self.points)
+
+
 
 
