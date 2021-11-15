@@ -52,7 +52,7 @@ class RobotCanvas(FloatLayout):
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
         self._bunny_widgets = {}
-        self.drop_down = self.add_drop_down_menu()
+        #self.drop_down = self.add_drop_down_menu()
         self.anchor_drop_down = None
         # force a pos update
         self.pos = (0 ,0)
@@ -222,10 +222,10 @@ class RobotCanvas(FloatLayout):
         self.can_draw_more = True
 
     def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            self.drop_down.pos = touch.pos
-            self.drop_down.size_hint = (0.2, 0.01)
-            return super().on_touch_down(touch)
+        # if self.collide_point(*touch.pos):
+        #     self.drop_down.pos = touch.pos
+        #     self.drop_down.size_hint = (0.2, 0.01)
+        #     return super().on_touch_down(touch)
 
         if(self.can_draw_more and self.custom_mode_on and touch.y < 995): # Don't like this being hardcoded. Fix
             with self.canvas:
