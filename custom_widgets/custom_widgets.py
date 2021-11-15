@@ -92,7 +92,7 @@ class StatusBarWidget(GridLayout):
 
 
 class BunnyWidget(Image, ButtonBehavior):
-    _bunny_state = ObjectProperty()
+    _state = ObjectProperty()
     _angle = NumericProperty(0)
 
     def __init__(self, uid, **kwargs):
@@ -101,7 +101,7 @@ class BunnyWidget(Image, ButtonBehavior):
         self._id = uid
 
     # state callback
-    def on__bunny_state(self, instance, value):
+    def on__state(self, instance, value):
         self.source = self._IMAGE_PATH + f"/bunny_widget_{value}"
 
     # rotation_angle_callback
@@ -115,9 +115,9 @@ class BunnyWidget(Image, ButtonBehavior):
                 print(f"incorrect state {value}")
                 raise ValueError
             else:
-                self._bunny_state = value
-        elif key == "theta":
-            anim = Animation(_angle=360, duration=2)
+                self._state = value
+        elif key == "angle":
+            anim = Animation(_angle=value, duration=2)
             anim.start(self)
 
     @property
@@ -471,17 +471,20 @@ class GridWidget(Widget):
         min_pixel = self.grid_scale["1m"]
         # x axis
         # Adding 15 grid lines
-        line_wp_distance = self.width// self.MAX_GRIDLINES
-        line_hp_distance = self.height//self.MAX_GRIDLINES
+        line_wp_distance = self.width  //self.MAX_GRIDLINES
+        line_hp_distance = self.height //self.MAX_GRIDLINES
         
-        for x_pos in range(int(self.x), int(self.width+self.x), line_wp_distance):
+
+        for x_pos in range(0, int(self.width), line_wp_distance):
+            if x_pos > self.height:
+                continue
             color = Color(*self.grid_color)
-            line = Line(points=(self.x + x_pos, self.y, self.x + x_pos, self.y+self.height))
+            line = Line(points=(self.x+ x_pos, self.y, self.x + x_pos, self.y+self.height))
             self.vertical_lines.append((color, line))
             self.lines.add(color)
             self.lines.add(line)
-    
-        for y_pos in range(int(self.y), int(self.height+self.y), line_hp_distance):
+
+        for y_pos in range(0, int(self.height), line_hp_distance):
             if y_pos > self.height:
                 continue
             color = Color(*self.grid_color)
@@ -538,6 +541,34 @@ class GridWidget(Widget):
             self.points.add(self.points_color)
             self.points.add(Point(points=points, pointsize=self.point_size))
             self.canvas.add(self.points)
+
+
+class DropDownWidget(BoxLayout):
+    """
+    custom dropdown widget whose anchor is a right-click 
+    """
+    def __init__(self, *args, **kwargs):
+        self.saved_attrs = [self.size_hint, self.opacity]
+
+    def on_touch_down(self, touch):
+        if touch.button == 'right':
+            self.pos = touch.pos
+            self.show()
+        if touch.button == "left" and not self.collide_point(*touch.pos):
+            self.hide()
+        return super().on_touch_down(touch)        
+
+    def hide(self):
+        self.saved_attrs[0] = self.size_hint
+        self.saved_attrs[1] = self.opacity
+        self.size_hint = (0, 0)
+        self.opacity = 0
+        self.disabled = True
+
+    def show(self):
+        self.size_hint = self.saved_attrs[0]
+        self.opacity = self.saved_attrs[1]
+        self.disabled = False
 
 
 

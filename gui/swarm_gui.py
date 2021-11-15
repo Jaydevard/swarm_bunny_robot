@@ -1,6 +1,4 @@
-
 import random
-
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -54,14 +52,15 @@ class RobotCanvas(FloatLayout):
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
         self._bunny_widgets = {}
+        self.drop_down = self.add_drop_down_menu()
+        self.anchor_drop_down = None
         # force a pos update
         self.pos = (0 ,0)
-         # for testing purposes
-              
+        # for testing purposes
         # add a Bunny
         self.add_bunny_widget(uid="bunny_1")
         # change the formation of the bunny to charge
-        Clock.schedule_once(partial(self.update_bunny_state, "bunny_1", "charge"), 1)
+        #Clock.schedule_once(partial(self.update_bunny_state, "bunny_1", "charge"), 1)
         # rotate the bunny to 270 degrees
         Clock.schedule_interval(partial(self.update_bunny_rotation, 
                                         "bunny_1", 
@@ -69,6 +68,31 @@ class RobotCanvas(FloatLayout):
         # grids
         self.add_grid = True
         self.gridline_widget = self.add_gridlines() if self.add_grid else None 
+
+    def add_drop_down_menu(self, *args) -> DropDown:
+        """
+        Add drop down for robot canvas (on rclick)
+        options are -> grid settings
+                    -> more to come
+        """
+        
+        grid_settings_btn = Button(text='grid_settings', 
+                                   size_hint_y=None,
+                                   size_hint_x=None,
+                                   height=40)
+        
+        grid_settings_btn.bind(on_release=self.show_grid_settings)
+        # more buttons aka options would be added later
+        
+        dropdown = DropDownWidget()
+        dropdown.add_widget(grid_settings_btn)
+        return dropdown
+
+    def show_grid_settings(self, *args):
+        # working on it!!
+        print("Hello") 
+        pass
+
 
     def set_transmitter_position(self, pos):
         """
@@ -86,28 +110,44 @@ class RobotCanvas(FloatLayout):
     def remove_gridlines(self):
         self.remove_widget(self.gridline_widget)
 
-    def add_bunny_widget(self, uid):
+    
+    def add_bunny_widget(self, uid, **kwargs):
+        """
+        Add a Bunny Widget 
+        (Optional)
+        :param - "size_hint" : size_hint for widget, 
+                               default (0.05, 0.05)
+        "param - "pos_hint"  : pos_hint for widget, default  
+                               ("center_x:0.5", "center_y:0.5")
+        :param - "state"     : state for widget (taken for CONSTANT.STATES) 
+                               default idle
+        :param - "angle"     : angle for widget,
+                               default 0
+        """
         bunny = BunnyWidget(uid=uid)
         self._bunny_widgets[uid] = bunny
-        bunny.size_hint = (0.05, 0.05)
-        bunny.pos_hint = {"center_x": 0.5, "center_y": 0.5}
+        bunny.size_hint = kwargs.get("size_hint", (0.05, 0.05))
+        bunny.pos_hint = kwargs.get("pos_hint", {"center_x": 0.5, "center_y": 0.5})
+        bunny["state"] = kwargs.get("state", "idle")
+        bunny["angle"] = kwargs.get("angle", 0)
         self.add_widget(bunny)
 
+   
     def update_bunny_position(self, bunny_uid, position: dict, *args):
         """
         :param  bunny_uid: id of bunny, e.g "bunny_1"
-                position: a dict containing pos: e.g position = {"x": 500, "y": 760, "theta":45}
+                position: a dict containing pos: e.g position = {"x": 500, "y": 760}
         raises KeyError if bunny is not present
         """
         bunny = self._bunny_widgets[bunny_uid]
-        for key in position.keys():
-            pass
+        bunny.pos_hint = position
+   
 
     def update_bunny_state(self, bunny_uid, state: str, *args):
         """
         :param  bunny_uid: id of bunny, e.g "bunny_2"
                 state - should be from {"idle", "formation", "charge", "roam"}
-        raises KeyError if bunny is not present
+        raises KeyError if bunny state is not right
         """
         self._bunny_widgets[bunny_uid]["state"] = state
 
@@ -116,7 +156,7 @@ class RobotCanvas(FloatLayout):
         :param bunny_uid: unique id of bunny
                rotation_angle: angle that bunny rotates to
         """
-        self._bunny_widgets[bunny_uid]["theta"] = rotation_angle
+        self._bunny_widgets[bunny_uid]["angle"] = rotation_angle
 
     def _update_pos(self, instance, pos):
         self.pos = pos
@@ -182,6 +222,11 @@ class RobotCanvas(FloatLayout):
         self.can_draw_more = True
 
     def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            self.drop_down.pos = touch.pos
+            self.drop_down.size_hint = (0.2, 0.01)
+            return super().on_touch_down(touch)
+
         if(self.can_draw_more and self.custom_mode_on and touch.y < 995): # Don't like this being hardcoded. Fix
             with self.canvas:
                 Color(1, 0 ,1)
@@ -213,6 +258,11 @@ class RobotCanvas(FloatLayout):
                             self.shape_lines.append(l)   
         return super(RobotCanvas, self).on_touch_down(touch)
     
+    def on_touch_up(self, touch):
+        return super().on_touch_up(touch)
+
+
+
     def calculate_triangle_area(self):
         p1 = self.shape_points[0].pos
         p2 = self.shape_points[1].pos
