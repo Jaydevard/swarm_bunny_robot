@@ -1,4 +1,5 @@
 import random
+from keyboard import on_press
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -52,54 +53,60 @@ class RobotCanvas(FloatLayout):
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
         self._bunny_widgets = {}
-        #self.drop_down = self.add_drop_down_menu()
-        self.anchor_drop_down = None
+        self.drop_down = None
         # force a pos update
         self.pos = (0 ,0)
         # for testing purposes
         # add a Bunny
-        self.add_bunny_widget(uid="bunny_1")
+        self.add_bunny_widget(bunny_uid="bunny_1")
         # change the formation of the bunny to charge
         #Clock.schedule_once(partial(self.update_bunny_state, "bunny_1", "charge"), 1)
         # rotate the bunny to 270 degrees
         Clock.schedule_interval(partial(self.update_bunny_rotation, 
                                         "bunny_1", 
                                          45), 25)
+        Clock.schedule_once(self.add_draggable_and_resizable_rect, 4)
+
+        
         # grids
         self.add_grid = True
         self.gridline_widget = self.add_gridlines() if self.add_grid else None 
 
+    def _update_pos(self, instance, pos):
+        self.pos = pos
+        self._minimum_coord = self.pos
+        self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
+        if self.gridline_widget is not None:
+            self.gridline_widget.update_grid()
+
+
+    def _update_size(self, instance, size):
+        self.size = size
+
+
     def add_drop_down_menu(self, *args) -> DropDown:
-        """
-        Add drop down for robot canvas (on rclick)
-        options are -> grid settings
-                    -> more to come
-        """
-        
-        grid_settings_btn = Button(text='grid_settings', 
-                                   size_hint_y=None,
-                                   size_hint_x=None,
-                                   height=40)
-        
-        grid_settings_btn.bind(on_release=self.show_grid_settings)
-        # more buttons aka options would be added later
-        
+        # create a dropdown
         dropdown = DropDownWidget()
-        dropdown.add_widget(grid_settings_btn)
+        
+        # add buttons to it
+        grid_settings_button = Button(text="Grid Settings")        
+        grid_settings_button.bind(on_press=self.show_grid_settings)
+        dropdown.add_widget(grid_settings_button)
+
+        scale_settings_button = Button(text="Scale Settings")
+        scale_settings_button.bind(on_press=self.show_scale_settings)
+        dropdown.add_widget(scale_settings_button)
+
+
+        self.add_widget(dropdown)
+        self.drop_down = dropdown
         return dropdown
 
-    def show_grid_settings(self, *args):
-        # working on it!!
-        print("Hello") 
+    def show_scale_settings(self, *args):
         pass
 
 
-    def set_transmitter_position(self, pos):
-        """
-        sets the transmitter's position
-        """
-        pass
-
+    ## Gridlines methods
     def add_gridlines(self):
         grid_line_widget = GridWidget()
         grid_line_widget.pos_hint = {"x":0, "y":0}
@@ -110,24 +117,31 @@ class RobotCanvas(FloatLayout):
     def remove_gridlines(self):
         self.remove_widget(self.gridline_widget)
 
+
+    def show_grid_settings(self, *args):
+        # working on it!!
+        print("Hello") 
+
+
+    ## Bunny methods
     
-    def add_bunny_widget(self, uid, **kwargs):
+    def add_bunny_widget(self, bunny_uid, **kwargs):
         """
         Add a Bunny Widget 
         (Optional)
         :param - "size_hint" : size_hint for widget, 
                                default (0.05, 0.05)
         "param - "pos_hint"  : pos_hint for widget, default  
-                               ("center_x:0.5", "center_y:0.5")
+                               {"center_x:0.5", "center_y:0.5"}
         :param - "state"     : state for widget (taken for CONSTANT.STATES) 
                                default idle
         :param - "angle"     : angle for widget,
                                default 0
         """
-        bunny = BunnyWidget(uid=uid)
-        self._bunny_widgets[uid] = bunny
+        bunny = BunnyWidget(uid=bunny_uid)
+        self._bunny_widgets[bunny_uid] = bunny
         bunny.size_hint = kwargs.get("size_hint", (0.05, 0.05))
-        bunny.pos_hint = kwargs.get("pos_hint", {"center_x": 0.5, "center_y": 0.5})
+        bunny.pos_hint = kwargs.get("pos_hint", {"center_x": 0.99, "center_y": 0.99 })
         bunny["state"] = kwargs.get("state", "idle")
         bunny["angle"] = kwargs.get("angle", 0)
         self.add_widget(bunny)
@@ -136,7 +150,7 @@ class RobotCanvas(FloatLayout):
     def update_bunny_position(self, bunny_uid, position: dict, *args):
         """
         :param  bunny_uid: id of bunny, e.g "bunny_1"
-                position: a dict containing pos: e.g position = {"x": 500, "y": 760}
+                position: a dict containing pos_hint: e.g position = {"x": 0.5, "y": 1}
         raises KeyError if bunny is not present
         """
         bunny = self._bunny_widgets[bunny_uid]
@@ -158,16 +172,15 @@ class RobotCanvas(FloatLayout):
         """
         self._bunny_widgets[bunny_uid]["angle"] = rotation_angle
 
-    def _update_pos(self, instance, pos):
-        self.pos = pos
-        self._minimum_coord = self.pos
-        self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
-        if self.gridline_widget is not None:
-            self.gridline_widget.update_grid()
-
-
-    def _update_size(self, instance, size):
-        self.size = size
+    def add_draggable_and_resizable_rect(self, *args):
+        """
+        Adds a draggable and resizable rectangle widget to
+        the canvas 
+        """
+        self.draggable_and_resizable_rect = DragAndResizeRect()
+        self.draggable_and_resizable_rect.pos = self.pos
+        self.draggable_and_resizable_rect.size = (0.5*self.size[0], 0.5*self.size[1])
+        self.add_widget(self.draggable_and_resizable_rect)
 
 
     def draw_premade_shape(self, name, root):
@@ -221,11 +234,15 @@ class RobotCanvas(FloatLayout):
         self.triangle_custom_mode_on = False
         self.can_draw_more = True
 
+
     def on_touch_down(self, touch):
-        # if self.collide_point(*touch.pos):
-        #     self.drop_down.pos = touch.pos
-        #     self.drop_down.size_hint = (0.2, 0.01)
-        #     return super().on_touch_down(touch)
+
+        # sense a right click and keep track of the number of touches
+        if self.collide_point(*touch.pos) and touch.button == 'right':
+            if self.drop_down is None:
+                touch.ud['robot_canvas_drop_down_touch'] = 'first_touch'
+        elif self.drop_down is not None:
+            touch.ud['robot_canvas_drop_down_touch'] = 'second_touch'
 
         if(self.can_draw_more and self.custom_mode_on and touch.y < 995): # Don't like this being hardcoded. Fix
             with self.canvas:
@@ -257,10 +274,26 @@ class RobotCanvas(FloatLayout):
                             (self.current_point.pos[0] + d / 2, self.current_point.pos[1] + d / 2)))
                             self.shape_lines.append(l)   
         return super(RobotCanvas, self).on_touch_down(touch)
-    
-    def on_touch_up(self, touch):
-        return super().on_touch_up(touch)
 
+
+    def on_touch_up(self, touch):
+        
+        if 'robot_canvas_drop_down_touch' in touch.ud.keys():
+            if touch.ud['robot_canvas_drop_down_touch'] == 'first_touch':
+                touch.ud["drop_down_widget"] = self.add_drop_down_menu()
+                self.drop_down.size_hint = (0.1, 0.1)
+                xx, yy = self.to_widget(*touch.pos, relative=True)
+                self.drop_down.pos = (touch.pos[0], touch.pos[1] - self.drop_down.size[1])
+                if self.width - xx < self.drop_down.width:
+                    self.drop_down.x -= self.drop_down.width
+                if yy - self.drop_down.height < 0:
+                    self.drop_down.y += self.drop_down.height 
+            elif touch.ud['robot_canvas_drop_down_touch'] == 'second_touch':
+                self.remove_widget(self.drop_down)
+                # del touch.ud["drop_down_widget"]
+                self.drop_down = None
+    
+        return super().on_touch_up(touch)
 
 
     def calculate_triangle_area(self):
@@ -273,8 +306,6 @@ class RobotCanvas(FloatLayout):
     def notify_bad_shape(self):
         #self.clear_canvas(self.parent.root)
         InformationPopup(_type="e", _message="Triangle size too small").open()
-
-
 
 
 
@@ -320,7 +351,7 @@ class Toolbar(BoxLayout):
 
         # Create the bunny menu buttons and add callback
         # add bunny to simulation
-        add_bunny_button = Button(text='add bunny',
+        add_bunny_button = Button(text='add bunny',  
                                   size_hint=(1, 1),
                                   height=50)
         add_bunny_button.bind(on_release=self._add_bunny_to_canvas)
@@ -379,10 +410,33 @@ class Toolbar(BoxLayout):
         pass
 
 
+
+
 class Connections(BoxLayout, WirelessNetwork):
     pass
 
+class Environment(BoxLayout):
+    scale_settings_boxlayout = ObjectProperty()
+    scale_settings_label = ObjectProperty()
+    scale_settings_gridlayout = ObjectProperty()
+    
+    def __init__(self, **kwargs):
+        super(Environment, self).__init__(**kwargs)
+        Clock.schedule_once(self.initialize, 0.5)
 
+    def initialize(self, *args):
+        # Label Background color
+        self.scale_settings_gridlayout.bkg_color = [0.1, 0.1, 0.1, 1]
+
+
+
+    def on_pos(self, instance, value):
+        self.pos = value
+
+    def on_size(self, instance, value):
+        self.size = value
+
+    
 
 class StatusBoard(BoxLayout):
     scroll_view = ObjectProperty()
@@ -406,13 +460,5 @@ class StatusBoard(BoxLayout):
         self.scroll_view.add_widget(bunny)
 
     
- 
-
-
-
-
-
-
-
     
     

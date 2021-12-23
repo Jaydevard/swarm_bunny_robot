@@ -86,135 +86,264 @@ BoxLayout:
         size_hint: 1, 1
         size: root.size
         pos: root.pos
-        Splitter:
-            sizable_from: 'right'
-            strip_size: 5
-            min_size: 375
-            canvas:
-                Color:
-                    rgba: 0, 0, 1, 0.2
-                Rectangle:
-                    size: self.size
-                    pos: self.pos
+        # Splitter:
+        #     sizable_from: 'right'
+        #     strip_size: 5
+        #     min_size: 375
+        #     canvas:
+        #         Color:
+        #             rgba: 0, 0, 1, 0.2
+        #         Rectangle:
+        #             size: self.size
+        #             pos: self.pos
         # Left Column
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint: 0.6, 1
-                pos_hint: {"left": 1}
-                padding: 5
-                spacing: 5
-                # Create the Tabs
-                TabbedPanel:
-                    do_default_tab: False
-                    tab_width: self.width/3
-                    pos_hint:{"left": 1}
-                    background_color: (255, 255, 255, 1.0)
-                    TabbedPanelItem:
-                        text: "Environment"
-                        background_color: 0, 1, 0.4, 1
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: 0.3, 1
+            pos_hint: {"left": 1}
+            padding: 5
+            spacing: 5
+            # Create the Tabs
+            TabbedPanel:
+                do_default_tab: False
+                tab_width: self.width/3
+                pos_hint:{"left": 1}
+                background_color: (255, 255, 255, 1.0)
+                TabbedPanelItem:
+                    id: environment_tabbedpanelitem
+                    text: "Environment"
+                    #background_color: 0, 1, 0.4, 1
+                    
+                    # Main Box Layout for Environment Tab
+                    Environment:
+                        id: environment_tab
+                        size_hint: 1, 1
+                        orientation: "vertical"
+                        scale_settings_boxlayout: scale_settings_boxlayout
+                        scale_settings_label: scale_settings_label
+                        scale_settings_gridlayout: scale_settings_gridlayout
+
+                        # Box Layout for Scale Settings
+                        BoxLayout:
+                            id : scale_settings_boxlayout
+                            orientation: "vertical"
+                            size_hint: 1, 0.2
+                            pos_hint: {"top": 1}
+
+                            Label:
+                                id: scale_settings_label
+                                canvas.before:
+                                    Color:
+                                        rgba: 0, 0, 0, 1
+                                    Rectangle:
+                                        pos: self.pos
+                                        size: self.size
+                                
+                                text: "[b]Scale Settings[/b]"
+                                size_hint: 1, 0.15
+                                markup: True
+
+                            # Scale settings
+                            GridLayout:
+                                id: scale_settings_gridlayout
+                                size_hint: 1, 0.8
+                                pos_hint: {"top": 1} 
+                                cols: 2
+                                rows: 4
+                                spacing: 2
+                                bkg_color: (0, 0, 0, 1)
+                                text_input_font_size: 14
+                                label_text_font_size: 15                       
+
+                                # (r1, c1)
+                                Label:
+                                    size_hint: 1, 0.5
+                                    font_size: self.parent.label_text_font_size
+                                    canvas.before:
+                                        Color: 
+                                            rgba: self.parent.bkg_color
+                                        
+                                        Rectangle: 
+                                            pos: self.pos
+                                            size: self.size
+                                    text: "[i]Grid Base Length [m][/i]"
+                                    markup: True
+                                
+                                # (r1, c2)
+                                TextInput:
+                                    size_hint: 1, 1
+                                    multiline: False
+                                    font_size: self.parent.text_input_font_size
+                                
+                                
+                                # (r2, c1)
+                                Label:
+                                    size_hint: 1, 1
+                                    font_size: self.parent.label_text_font_size
+                                    canvas.before:
+                                        Color: 
+                                            rgba: self.parent.bkg_color
+                                        Rectangle: 
+                                            pos: self.pos
+                                            size: self.size
+                                    text: "[i]Grid Base Width [m] [/i]"
+                                    markup: True
+                                
+                                #(r2, c2)
+                                TextInput:
+                                    size_hint: 1, 1
+                                    multiline: False
+                                    font_size: self.parent.text_input_font_size
+                                
+                                #(r3, c1)
+                                Label:
+                                    size_hint: 1, 1
+                                    font_size: self.parent.label_text_font_size
+                                    canvas.before:
+                                        Color: 
+                                            rgba: self.parent.bkg_color
+                                        Rectangle: 
+                                            pos: self.pos
+                                            size: self.size
+                                    text: "[i]Max Width of Space [m] [/i]"
+                                    markup: True                
+                                
+                                #(r3, c2)
+                                TextInput:
+                                    size_hint: 1, 1
+                                    multiline: False
+                                    font_size: self.parent.text_input_font_size              
+                                
+                                
+                                #(r4, c1)
+                                Label:
+                                    size_hint: 1, 1
+                                    font_size: self.parent.label_text_font_size
+                                    canvas.before:
+                                        Color: 
+                                            rgba: self.parent.bkg_color
+                                        Rectangle: 
+                                            pos: self.pos
+                                            size: self.size
+                                    text: "[i]Max Length of Space [m][/i]"
+                                    markup: True                
+                                
+                                #(r4, c2)
+                                TextInput:
+                                    size_hint: 1, 1
+                                    multiline: False
+                                    font_size: self.parent.text_input_font_size              
+                                
+
+                        # Botton Layout
                         BoxLayout:
                             size_hint: 1, 1
-                            TransmitterWidget:
-                                pos: self.pos
-                                size: 100, 100
-                                size_hint: None, None
-                    TabbedPanelItem:
-                        text: "Connections"
-                        # Main Connections Layout
-                        Connections:
-                            id: connections
-                            size_hint: 1, 1
+                            canvas.before:
+                                Color: 
+                                    rgba: 1, 0, 1, 1
+                                Rectangle:
+                                    size: self.size
+                                    pos: self.pos
+
+                                    
+                            
+                TabbedPanelItem:
+                    text: "Connections"
+                    # Main Connections Layout
+                    Connections:
+                        id: connections
+                        size_hint: 1, 1
+                        orientation: "vertical"
+                        # Top Layout for radio dongle
+                        RadioDongleWidget:
+                            id: radio_dongle_widget
+                            size_hint: 1, 0.1
+                            pos_hint: {"top": 1}
+
+                        # Middle Layout for Radio Channels
+                        StatusBoard:
+                            id: status_board
                             orientation: "vertical"
-                            # Top Layout for radio dongle
-                            RadioDongleWidget:
-                                id: radio_dongle_widget
-                                size_hint: 1, 0.1
-                                pos_hint: {"top": 1}
+                            size_hint: 1, 1
+                            pos_hint: {"top": 1}
 
-                            # Middle Layout for Radio Channels
-                            StatusBoard:
-                                id: status_board
-                                orientation: "vertical"
-                                size_hint: 1, 1
-                                pos_hint: {"top": 1}
+                            scroll_view: scroll_view
 
-                                scroll_view: scroll_view
-
-                                BoxLayout:
-                                    size_hint: 1, 0.1
-                                    pos_hint: {"top": 1}
-                                    orientation: "horizontal"
-                                    canvas.before:
-                                        Color:
-                                            rgb: 0, 0, 0, 1
-                                        Rectangle:
-                                            size: self.size
-                                            pos: self.pos
-                                    Label: 
-                                        pos_hint: {"left": 1}
-                                        size_hint: 0.1, 1
-                                        text: "  Click me!!"
-                                        pos_hint: {"left": 1}
-                                    CheckBox:
-                                        pos_hint: {"left": 0.8}
-
-                                ScrollView:
-                                    id: scroll_view
-
-
-                            # StatusBar: Bottom Layout for StatusBar
                             BoxLayout:
                                 size_hint: 1, 0.1
-                                orientation: "vertical"
-                                pos_hint: {"center_x":0.5, "center_y": 0.5}
+                                pos_hint: {"top": 1}
+                                orientation: "horizontal"
                                 canvas.before:
-                                    Color: 
-                                        rgb: 0, 0, 0
+                                    Color:
+                                        rgb: 0, 0, 0, 1
                                     Rectangle:
                                         size: self.size
                                         pos: self.pos
-                                StatusBarWidget:
-                                    id: status_bar_widget
-                                    size_hint: 1, 1
-                                    pos_hint: {"right": 1}
+                                Label: 
+                                    pos_hint: {"left": 1}
+                                    size_hint: 0.1, 1
+                                    text: "  Click me!!"
+                                    pos_hint: {"left": 1}
+                                CheckBox:
+                                    pos_hint: {"left": 0.8}
+
+                            ScrollView:
+                                id: scroll_view
 
 
-                    TabbedPanelItem:
-                        text: "Choreography"
-                        Choreography:
-                            id: choreography
-                            orientation: 'vertical'
-                            Button:
-                                text: "Custom"
-                                id: custom
-                                size_hint: 1, 0.2
-                                on_press: root.ids.robot_canvas.custom_mode(root)
-                                pos_hint: {"top":1}
-                            Button:
-                                text: "Custom Triangle"
-                                id: custom_triangle
-                                size_hint: 1, 0.2
-                                on_press: root.ids.robot_canvas.triangle_custom_mode(root)
-                                pos_hint: {"top":1}
-                            Button:
-                                text: "Triangle"
-                                id: triangle
-                                size_hint: 1, 0.2
-                                on_press: root.ids.robot_canvas.draw_premade_shape("triangle", root)
-                                pos_hint: {"top":1}
-                            Button:
-                                text: "Square"
-                                id: square
-                                on_press: root.ids.robot_canvas.draw_premade_shape("square", root)
-                                size_hint: 1, 0.2
-                                pos_hint: {"top":1}
-                            Button:
-                                text: "Clear"
-                                id: clear
-                                disabled: True
-                                on_press: root.ids.robot_canvas.clear_canvas(root)
-                                size_hint: 1, 0.2
-                                pos_hint: {"top":1}
+                        # StatusBar: Bottom Layout for StatusBar
+                        BoxLayout:
+                            size_hint: 1, 0.1
+                            orientation: "vertical"
+                            pos_hint: {"center_x":0.5, "center_y": 0.5}
+                            canvas.before:
+                                Color: 
+                                    rgb: 0, 0, 0
+                                Rectangle:
+                                    size: self.size
+                                    pos: self.pos
+                            StatusBarWidget:
+                                id: status_bar_widget
+                                size_hint: 1, 1
+                                pos_hint: {"right": 1}
+
+
+                TabbedPanelItem:
+                    text: "Choreography"
+                    Choreography:
+                        id: choreography
+                        orientation: 'vertical'
+                        Button:
+                            text: "Custom"
+                            id: custom
+                            size_hint: 1, 0.2
+                            on_press: root.ids.robot_canvas.custom_mode(root)
+                            pos_hint: {"top":1}
+                        Button:
+                            text: "Custom Triangle"
+                            id: custom_triangle
+                            size_hint: 1, 0.2
+                            on_press: root.ids.robot_canvas.triangle_custom_mode(root)
+                            pos_hint: {"top":1}
+                        Button:
+                            text: "Triangle"
+                            id: triangle
+                            size_hint: 1, 0.2
+                            on_press: root.ids.robot_canvas.draw_premade_shape("triangle", root)
+                            pos_hint: {"top":1}
+                        Button:
+                            text: "Square"
+                            id: square
+                            on_press: root.ids.robot_canvas.draw_premade_shape("square", root)
+                            size_hint: 1, 0.2
+                            pos_hint: {"top":1}
+                        Button:
+                            text: "Clear"
+                            id: clear
+                            disabled: True
+                            on_press: root.ids.robot_canvas.clear_canvas(root)
+                            size_hint: 1, 0.2
+                            pos_hint: {"top":1}
 
         # Right Column
         BoxLayout:
@@ -230,7 +359,6 @@ BoxLayout:
                     Rectangle:
                         size: self.size
                         pos: self.pos
-
             BoxLayout:
                 size_hint: 1, 0.03
                 pos: self.pos

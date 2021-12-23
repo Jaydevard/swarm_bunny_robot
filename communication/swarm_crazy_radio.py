@@ -22,7 +22,6 @@ from cflib.drivers import cfusb
     informations.
 '''
 #import argparse
-
 #import matplotlib.pyplot as plt
 #import numpy as np
 

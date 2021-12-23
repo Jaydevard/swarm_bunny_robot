@@ -1,11 +1,13 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
+from kivy.uix.label import Label
+from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
 from functools import partial
 from utils import InformationPopup
 from pathlib import Path
-from kivy.uix.behaviors import DragBehavior
+from kivy.uix.behaviors import DragBehavior, button
 from kivy.animation import Animation
 from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProperty, \
     ReferenceListProperty, ListProperty, NumericProperty, BooleanProperty, DictProperty
@@ -45,7 +47,7 @@ class StatusBarWidget(GridLayout):
     def initialize_images(self, *args):
         self._state_image.source = str(self._IMAGE_PATH / "state_formation.png")
         self._wifi_image.source = str(self._IMAGE_PATH / "wifi_not_connected.png")
-        self._battery_image.source = str(self._IMAGE_PATH / "battery_40.png")
+        self._battery_image.source = str(self._IMAGE_PATH / "battery_80.png")
         self._speed_image.source = str(self._IMAGE_PATH / "speed.png")
 
     def on_pos(self, instance, value):
@@ -218,7 +220,6 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
             InformationPopup(_type='e', _message="Connection to radio could not be established!!").open()
             self._active_radio_dongle = None
 
-
 class BunnyActionBar(ActionBar):
 
     # need to be completed
@@ -239,7 +240,7 @@ class BunnyActionBar(ActionBar):
     def id(self):
         return self._id
 
-    
+
 class DragAndResizeRect(DragBehavior, Widget):
     _border_coord = ListProperty([0 ,0, 0, 0])
     _border_width = NumericProperty(4)
@@ -250,7 +251,7 @@ class DragAndResizeRect(DragBehavior, Widget):
     
     def __init__(self, **kwargs):
         super(DragAndResizeRect, self).__init__(**kwargs)
-
+        self.constrain_to_parent_window = True
     def on_pos(self, item, pos):
         self.pos = pos
         if self._draw_border:
@@ -273,13 +274,15 @@ class DragAndResizeRect(DragBehavior, Widget):
 
     def on_touch_down(self, touch):
         self.pos_hint = {}
-        
         if not self.collide_point(*touch.pos):
             return super(DragAndResizeRect, self).on_touch_up(touch)
-            
+
+        print(touch.ud.keys())
+        if "drop_down_widget" in touch.ud.keys():
+            print("Hello!!") 
+
         diff = self._border_width * 2
         xx, yy  = self.to_widget(*touch.pos, relative=True)
-        
         if touch.button == "left":
             self._edit_mode = "pos"
             
@@ -315,6 +318,7 @@ class DragAndResizeRect(DragBehavior, Widget):
             else:
                 Window.set_system_cursor('crosshair')
             touch.ud['edit_mode'] = self._edit_mode
+            
             if self._edit_mode != 'pos':
                 touch.ud['size_node'] = self
                 return True
@@ -358,6 +362,7 @@ class DragAndResizeRect(DragBehavior, Widget):
                     else:
                         self.size_hint_x = xx / self.parent.width
                         self.width = xx
+                        
 
             elif touch.ud["edit_mode"] == 'nw':
                 if yy > 0:
@@ -439,15 +444,16 @@ class GridWidget(Widget):
     point_size = NumericProperty(2)
     point_color = ListProperty([1, 0, 1, 1])
 
-    # what is the main resource for this
     def __init__(self, **kwargs):
         super(GridWidget, self).__init__(**kwargs)
         self.horizontal_lines = []
         self.vertical_lines = []
+        self.labels = []
         self.points_color = Color(*self.point_color)
         self.points = InstructionGroup()
         self.lines = InstructionGroup()
         self.draw_grid()
+
 
     def on_pos(self, item, value):
         self.pos = value
@@ -494,7 +500,7 @@ class GridWidget(Widget):
             self.lines.add(line)
 
         self.canvas.add(self.lines)
-
+        self.add_scale_markings()
 
     def update_grid(self, *args):
         """
@@ -542,33 +548,42 @@ class GridWidget(Widget):
             self.points.add(Point(points=points, pointsize=self.point_size))
             self.canvas.add(self.points)
 
+        self.update_scale_markings()
+
+
+    def add_scale_markings(self):
+        for pos, (color_x, line_x) in enumerate(self.vertical_lines):
+            points = line_x.points[2::]
+            label = Label(text=f"{(pos+1)} m")
+            label.pos = points
+            label.size = (0, 0)
+            label.pos = points
+            self.add_widget(label)
+            self.labels.append(label)
+    
+    
+    def update_scale_markings(self):
+        if self.labels == []:
+            return
+        else:
+            
+            while len(self.labels) != len(self.vertical_lines):
+                self.remove_widget(self.labels[-1])
+                self.labels.pop()
+            for pos, label in enumerate(self.labels):
+                label.pos = self.vertical_lines[pos][1].points[2::]
+
 
 class DropDownWidget(BoxLayout):
     """
     custom dropdown widget whose anchor is a right-click 
     """
     def __init__(self, *args, **kwargs):
-        self.saved_attrs = [self.size_hint, self.opacity]
+        super(DropDownWidget, self).__init__(**kwargs)
+        self.orientation = "vertical"
+        self.padding = 5
 
-    def on_touch_down(self, touch):
-        if touch.button == 'right':
-            self.pos = touch.pos
-            self.show()
-        if touch.button == "left" and not self.collide_point(*touch.pos):
-            self.hide()
-        return super().on_touch_down(touch)        
 
-    def hide(self):
-        self.saved_attrs[0] = self.size_hint
-        self.saved_attrs[1] = self.opacity
-        self.size_hint = (0, 0)
-        self.opacity = 0
-        self.disabled = True
-
-    def show(self):
-        self.size_hint = self.saved_attrs[0]
-        self.opacity = self.saved_attrs[1]
-        self.disabled = False
 
 
 
