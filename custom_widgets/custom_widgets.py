@@ -126,7 +126,6 @@ class BunnyWidget(Image, ButtonBehavior):
     def id(self):
         return self._id
 
-
 class TransmitterWidget(DragBehavior, Image):
 
     def __init__(self, **kwargs):
