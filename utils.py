@@ -1,6 +1,4 @@
 import queue
-import threading
-import time
 from kivy.uix.popup import Popup
 from kivy.properties import ObjectProperty
 from kivy.uix.boxlayout import BoxLayout
@@ -8,6 +6,8 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.clock import Clock
 from functools import partial
+
+from core.constants import Constants
 
 
 class DataHandler(queue.Queue):
@@ -81,11 +81,89 @@ class InformationPopup(Popup):
         self._main_layout.add_widget(self._message_label)
         self.add_widget(self._main_layout)
 
+class Scale(Constants):
+    _scale = [100, 1, "m"]
+    
+    def __init__(self, **kwargs) -> None:
+        self._scale = kwargs.get("scale", [100, 1, "m"])
+        pass
+    
+    def set_scale(self, scale):
+        self._scale = scale
 
+    def to_pixels(self, val: int or float or list or tuple, unit: str, scale=None):
+        """
+        :params -val , value to convert
+                -unit, unit of value ==> ("m", "ft")
+                -scale(optional) if None, uses set scale, default is 100 pixels = 1m
+                                 else must be a list like [200, 1, "ft"]
+                                                          200 pixels = 1 ft
+        """
+        if type(val) == list or type(val) == tuple:
+            val = [float(value) for value in val]
+        else: 
+            val = [float(val)]
+        
+        [base_pixel, base_unit, _unit] = self._scale if scale is None else scale
+        base_pixel = float(base_pixel)
+        conv_val = []
+        for value in val:
+            if _unit == "m" and unit == "m":
+                conv_val.append(value * base_pixel)
+            elif _unit == "m" and unit == "ft":
+                conv_val.append(value * 0.3048 * base_pixel)
+            elif _unit == "ft" and unit == "ft":
+                conv_val.append(value * base_pixel)
+            elif _unit == "ft" and unit == "m":
+                conv_val.append(value * base_pixel * (1.0/0.3048))
+        if len(conv_val) == 1:
+            return conv_val[0]
+        else:
+            return conv_val
+    
+    def to_unit(self, val:int or float or list or tuple, unit:str, scale=None):
+        """
+        :params -val, value to convert pixels 
+                -unit, unit to convert to
+                -scale(optional) if None, uses set scale, default is 100 pixels = 1m
+                                 else must be a list like [200, 1, "ft"]
+                                                          200 pixels = 1 ft
+        """
+        if type(val) == list or type(val) == tuple:
+            val = [float(value) for value in val]
+        else: 
+            val = [float(val)]
+        
+        [base_pixel, base_unit, _unit] = self._scale if scale is None else scale
+        base_pixel = float(base_pixel)
+        conv_val = []
+        for value in val:
+            if _unit == "m" and unit == "m":
+                conv_val.append(value / base_pixel)
+            elif _unit == "m" and unit == "ft":
+                conv_val.append(value / 0.3048 / base_pixel)
+            elif _unit == "ft" and unit == "ft":
+                conv_val.append(value / base_pixel)
+            elif _unit == "ft" and unit == "m":
+                conv_val.append(value / base_pixel / 0.3048)
+        if len(conv_val) == 1:
+            return conv_val[0]
+        else:
+            return conv_val
 
 
 if __name__ == "__main__":
     pass
+
+
+
+
+
+
+
+
+
+
 
 
 

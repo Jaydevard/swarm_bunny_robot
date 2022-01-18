@@ -186,7 +186,7 @@ BoxLayout:
                                         Rectangle: 
                                             pos: self.pos
                                             size: self.size
-                                    text: "[i]Grid Base Width [m] [/i]"
+                                    text: "[i]Grid Max Length[m] [/i]"
                                     markup: True
                                 
                                 #(r2, c2)
@@ -238,15 +238,40 @@ BoxLayout:
                         # Botton Layout
                         BoxLayout:
                             size_hint: 1, 1
+                            orientation: "vertical"
                             canvas.before:
                                 Color: 
-                                    rgba: 1, 0, 1, 1
+                                    rgba: 0, 0, 0, 1
                                 Rectangle:
                                     size: self.size
                                     pos: self.pos
-
-                                    
                             
+                            BoxLayout:
+                                orientation:"vertical"
+                                
+                                Label:
+                                    id: scale_settings_label
+                                    canvas.before:
+                                        Color:
+                                            rgba: 0, 0, 0, 1
+                                        Rectangle:
+                                            pos: self.pos
+                                            size: self.size
+                                    
+                                    text: "[b]Shape Settings[/b]"
+                                    size_hint: 1, 0.025
+                                    markup: True                          
+                                
+                                ShapeSettings:
+                                    _root: root
+                                    size_hint: 1, 0.5
+                                    pos_hint: {"top": 1}
+                                RecycleView:
+                                    pos: self.pos
+                                    size: self.size
+                                    Button:
+                                        text: "Check!!"
+
                 TabbedPanelItem:
                     text: "Connections"
                     # Main Connections Layout

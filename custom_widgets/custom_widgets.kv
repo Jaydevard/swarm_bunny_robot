@@ -129,13 +129,6 @@
             font_size: '17sp'
             markup: True
 
-<TransmitterWidget>:
-    drag_rectangle: self.x, self.y, self.width, self.height
-    drag_timeout: 1000000
-    drag_distance: 0
-
-
-
 <BunnyActionBar>:
 
     ActionView:
@@ -155,14 +148,12 @@
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 10000000
     drag_distance: 0
-
-    
     canvas.after:
         Color:
             rgba: self._fill_color
         Rectangle:
             size: self.size
-            pos: self.pos  
+            pos: self.pos
         
         Color:
             rgba: self._border_color
@@ -173,21 +164,401 @@
             rectangle: self._border_coord
                       
 
+<DragAndResizePolygon>:
+    # drag definitions
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 10000000
+    drag_distance: 0
+
+    canvas.after:
+        Color: 
+            rgba: self.border_color
+        Ellipse:
+            pos: self.pos
+            size: self.size
+            segments: self.segments
+        Color:
+            rgba: self.fill_color
+        Line:
+            points: self.line_points
+            width: 4
+
+
 <GridWidget>:
 
 
+<ColorDropDown>:
+    red_slider: _red_slider
+    green_slider: _green_slider
+    blue_slider: _blue_slider
+    transparency_slider: _transparency_slider
+    none_button: _none_button
+
+
+    Slider:
+        id: _red_slider
+        min: 0
+        max: 1
+        step: 0.1
+        orientation: "horizontal"
+        size_hint_y: None
+        height: '20dp'
+        cursor_height: '12sp'
+        cursor_width: '12sp'
+        
+        canvas.before:
+            Color: 
+                rgba: 1, 0, 0, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    Slider:
+        id: _green_slider
+        min: 0
+        max: 1
+        step: 0.1
+        orientation: "horizontal"
+        size_hint_y: None
+        height: '20dp'
+        cursor_width: '12sp'
+        cursor_height: '12sp'
+        canvas.before:
+            Color: 
+                rgba: 0, 1, 0, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    Slider:
+        id: _blue_slider
+        min: 0
+        max: 1
+        step: 0.1
+        orientation: "horizontal"
+        size_hint_y: None
+        height: '20dp'
+        cursor_width: '12sp'
+        cursor_height: '12sp'
+        canvas.before:
+            Color: 
+                rgba: 0, 0, 1, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    Slider:
+        id: _transparency_slider
+        min: 0
+        max: 1
+        step: 0.1
+        orientation: "horizontal"
+        size_hint_y: None
+        height: '20dp'
+        cursor_width: '12sp'
+        cursor_height: '12sp'
+        canvas.before:
+            Color: 
+                rgba: 1, 1, 1, 0.2
+            Rectangle:
+                pos: self.pos
+                size: self.size
+    Button:
+        id: _none_button
+        size_hint_y: None
+        height: '25dp'
+        text: "[i]None[/i]"
+        font_size: 12
+        markup: True
+
+
+<ShapeSettings>:
+    _width_label: _width_label
+    _width_text_input:_width_text_input
     
-<DropDownWidget>:
+    _height_label: _height_label
+    _height_text_input: _height_text_input
+    
+    _unit_label: _unit_label
+    _unit_spinner: _unit_spinner
+    
+    _shape_label: _shape_label
+    _shape_spinner: _shape_spinner
+    
+    _fill_color_label: _fill_color_label
+    _fill_color_button: _fill_color_button 
+
+    _type_label: _type_label
+    _type_spinner: _type_spinner
+
+    _border_color_label: _border_color_label
+    _border_color_button: _border_color_button
+
+
+    _lock_size_label: _lock_size_label
+    _lock_size_checkbox: _lock_size_checkbox
+
+    _lock_position_label: _lock_position_label
+    _lock_position_checkbox: _lock_position_checkbox
+    
+    _place_button: _place_button
+    _remove_button: _remove_button
+    _new_button: _new_button
+
+    cols: 6
+    row_force_default: True
+    row_default_height: 30
+    spacing: 2
+
+    
+    #(r1, c1)
+    Label:
+        id: _width_label
+        text: "[i]Width:[/i]"
+        font_size: self.parent._label_font_size
+        markup: True
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+
+    #(r1, c2)
+    TextInput:
+        id: _width_text_input
+        multiline: False
+        background_color: 0, 0, 0, 1
+        foreground_color: 1, 1, 1, 1
+        input_filter: "float"
+    
+    #(r1, c3)
+    Label:
+        id: _height_label
+        text: "[i]Height:[/i]"
+        font_size: self.parent._label_font_size
+        markup: True
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    #(r1, c4)
+    TextInput:
+        id: _height_text_input
+        multiline: False
+        background_color: 0, 0, 0, 1
+        foreground_color: 1, 1, 1, 1
+        input_filter: "float"
     
 
+    #(r1, c5)
+    Label:
+        id: _unit_label
+        text: "Unit"
+        font_size: self.parent._label_font_size
+        markup: True
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
 
 
+    #(r1, c6)
+    Spinner:
+        id: _unit_spinner
+        text: "m"
+        values: ["m", "ft"]
+        size_hint_y: None
+        height: '25sp'
+        sync_height: True
+        canvas.before:
+            Color:
+                rgba: 0, 0, 0, 1
+            Rectangle: 
+                pos: self.pos
+                size: self.size
 
 
+    #(r2, c1)
+    Label:
+        id: _shape_label
+        text: "Shape"
+        markup: True
+        font_size: self.parent._label_font_size
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    #(r2, c2)
+    Spinner:
+        id: _shape_spinner
+        text: "Rectangle"
+        values: ["Rectangle","Triangle", "Polygon","Ellipse", "Custom"]
+        sync_height: True
+    
+    #(r2, c3)
+    Label:
+        id: _fill_color_label
+        text: "Fill"
+        markup: True
+        font_size: self.parent._label_font_size
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    #(r2, c4)
+    Button:
+        id: _fill_color_button
+        markup: True
+        font_size: 12
+        background_color: 0, 0, 0, 1
+        canvas:
+            Color:
+                rgba: self.parent._shape_fill_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    #(r2, c5)
+    Label:
+        id: _type_label
+        text: "Type"
+        font_size: self.parent._label_font_size
+        canvas.before:
+            Color: 
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+    
+    #(r2, c6)
+    Spinner: 
+        id: _type_spinner
+        text: "Zone"
+        values: ["Zone", "Obstacle", "Target"]
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        sync_height: True
 
 
+    #(r3, c1)
+    Label:
+        id: _border_color_label
+        text: "Border "
+        font_size: self.parent._label_font_size
+        pos: self.pos
+        size: self.size
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    #(r3, c2)
+    Button: 
+        id: _border_color_button
+        markup: True
+        font_size: 12
+        background_color: 0, 0, 0, 1
+        canvas:
+            Color:
+                rgba: self.parent._shape_border_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        
+    #(r3, c3)
+    Label:
+        id: _lock_size_label
+        text: "Lock Size"
+        font_size: self.parent._label_font_size
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+    
+    #(r3, c4)
+    CheckBox:
+        id: _lock_size_checkbox
+        color: 1, 1, 1, 1
+        canvas.before:
+            Color: 
+                rgba: 0, 0, 0, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    #(r3, c5)
+    Label:
+        id: _lock_position_label
+        text: "Lock Pos"
+        font_size: self.parent._label_font_size
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    #(r3, c6)
+    CheckBox:
+        id: _lock_position_checkbox
+        color: 1, 1, 1, 1
+        canvas.before:
+            Color:
+                rgba: 0, 0, 0, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+    #(r4, c1)
+    Button:
+        id: _place_button
+        text: "Place"
+        pos: self.pos
+        size: self.size
+    
+    #(r4, c2)
+    Button:
+        id: _new_button
+        text: "New"
+        canvas.before:
+            Color:
+                rgba: self.parent._bkg_color
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+    #(r4, c3)
+    Button:
+        id: _remove_button
+        text: "Remove"
+        pos: self.pos
+        size: self.size
+
+    
+      
 
 
+            
 
 
 

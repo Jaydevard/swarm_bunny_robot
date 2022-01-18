@@ -54,21 +54,14 @@ class RobotCanvas(FloatLayout):
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
         self._bunny_widgets = {}
         self.drop_down = None
-        # force a pos update
+        self.canvas_shapes = []
+        self.polygon = None
         self.pos = (0 ,0)
-        # for testing purposes
-        # add a Bunny
         self.add_bunny_widget(bunny_uid="bunny_1")
-        # change the formation of the bunny to charge
-        #Clock.schedule_once(partial(self.update_bunny_state, "bunny_1", "charge"), 1)
-        # rotate the bunny to 270 degrees
         Clock.schedule_interval(partial(self.update_bunny_rotation, 
                                         "bunny_1", 
                                          45), 25)
         Clock.schedule_once(self.add_draggable_and_resizable_rect, 4)
-
-        
-        # grids
         self.add_grid = True
         self.gridline_widget = self.add_gridlines() if self.add_grid else None 
 
@@ -79,32 +72,8 @@ class RobotCanvas(FloatLayout):
         if self.gridline_widget is not None:
             self.gridline_widget.update_grid()
 
-
     def _update_size(self, instance, size):
         self.size = size
-
-
-    def add_drop_down_menu(self, *args) -> DropDown:
-        # create a dropdown
-        dropdown = DropDownWidget()
-        
-        # add buttons to it
-        grid_settings_button = Button(text="Grid Settings")        
-        grid_settings_button.bind(on_press=self.show_grid_settings)
-        dropdown.add_widget(grid_settings_button)
-
-        scale_settings_button = Button(text="Scale Settings")
-        scale_settings_button.bind(on_press=self.show_scale_settings)
-        dropdown.add_widget(scale_settings_button)
-
-
-        self.add_widget(dropdown)
-        self.drop_down = dropdown
-        return dropdown
-
-    def show_scale_settings(self, *args):
-        pass
-
 
     ## Gridlines methods
     def add_gridlines(self):
@@ -117,13 +86,7 @@ class RobotCanvas(FloatLayout):
     def remove_gridlines(self):
         self.remove_widget(self.gridline_widget)
 
-
-    def show_grid_settings(self, *args):
-        # working on it!!
-        print("Hello") 
-
-
-    ## Bunny methods
+    #===================== Bunny methods ==========================#
     
     def add_bunny_widget(self, bunny_uid, **kwargs):
         """
@@ -146,7 +109,6 @@ class RobotCanvas(FloatLayout):
         bunny["angle"] = kwargs.get("angle", 0)
         self.add_widget(bunny)
 
-   
     def update_bunny_position(self, bunny_uid, position: dict, *args):
         """
         :param  bunny_uid: id of bunny, e.g "bunny_1"
@@ -155,7 +117,6 @@ class RobotCanvas(FloatLayout):
         """
         bunny = self._bunny_widgets[bunny_uid]
         bunny.pos_hint = position
-   
 
     def update_bunny_state(self, bunny_uid, state: str, *args):
         """
@@ -178,9 +139,32 @@ class RobotCanvas(FloatLayout):
         the canvas 
         """
         self.draggable_and_resizable_rect = DragAndResizeRect()
+        self.canvas_shapes.append(self.draggable_and_resizable_rect)
         self.draggable_and_resizable_rect.pos = self.pos
         self.draggable_and_resizable_rect.size = (0.5*self.size[0], 0.5*self.size[1])
         self.add_widget(self.draggable_and_resizable_rect)
+
+    #===========================================================#
+    #===========================================================#
+
+    #=================== Shape Methods =========================#
+    def add_shape(self, shape_properties):
+        try:
+            if shape_properties["border_color"][-1] == 0.0 and \
+                shape_properties["fill_color"][-1] == 0.0:
+                InformationPopup(_type='e', _message="Both Border Color and Fill Color are fully transparent").open()
+                return False
+            
+
+
+            return True
+        except Exception as e:
+            print(e)
+    
+    def add_polygon():
+        pass
+    #==========================================================#
+    #==========================================================#
 
 
     def draw_premade_shape(self, name, root):
@@ -237,13 +221,6 @@ class RobotCanvas(FloatLayout):
 
     def on_touch_down(self, touch):
 
-        # sense a right click and keep track of the number of touches
-        if self.collide_point(*touch.pos) and touch.button == 'right':
-            if self.drop_down is None:
-                touch.ud['robot_canvas_drop_down_touch'] = 'first_touch'
-        elif self.drop_down is not None:
-            touch.ud['robot_canvas_drop_down_touch'] = 'second_touch'
-
         if(self.can_draw_more and self.custom_mode_on and touch.y < 995): # Don't like this being hardcoded. Fix
             with self.canvas:
                 Color(1, 0 ,1)
@@ -277,22 +254,6 @@ class RobotCanvas(FloatLayout):
 
 
     def on_touch_up(self, touch):
-        
-        if 'robot_canvas_drop_down_touch' in touch.ud.keys():
-            if touch.ud['robot_canvas_drop_down_touch'] == 'first_touch':
-                touch.ud["drop_down_widget"] = self.add_drop_down_menu()
-                self.drop_down.size_hint = (0.1, 0.1)
-                xx, yy = self.to_widget(*touch.pos, relative=True)
-                self.drop_down.pos = (touch.pos[0], touch.pos[1] - self.drop_down.size[1])
-                if self.width - xx < self.drop_down.width:
-                    self.drop_down.x -= self.drop_down.width
-                if yy - self.drop_down.height < 0:
-                    self.drop_down.y += self.drop_down.height 
-            elif touch.ud['robot_canvas_drop_down_touch'] == 'second_touch':
-                self.remove_widget(self.drop_down)
-                # del touch.ud["drop_down_widget"]
-                self.drop_down = None
-    
         return super().on_touch_up(touch)
 
 
@@ -306,7 +267,6 @@ class RobotCanvas(FloatLayout):
     def notify_bad_shape(self):
         #self.clear_canvas(self.parent.root)
         InformationPopup(_type="e", _message="Triangle size too small").open()
-
 
 
 class Choreography(BoxLayout):
@@ -410,8 +370,6 @@ class Toolbar(BoxLayout):
         pass
 
 
-
-
 class Connections(BoxLayout, WirelessNetwork):
     pass
 
@@ -428,8 +386,6 @@ class Environment(BoxLayout):
         # Label Background color
         self.scale_settings_gridlayout.bkg_color = [0.1, 0.1, 0.1, 1]
 
-
-
     def on_pos(self, instance, value):
         self.pos = value
 
@@ -437,7 +393,6 @@ class Environment(BoxLayout):
         self.size = value
 
     
-
 class StatusBoard(BoxLayout):
     scroll_view = ObjectProperty()
     
@@ -459,6 +414,5 @@ class StatusBoard(BoxLayout):
         bunny = BunnyActionBar(uid=bunny_uid)
         self.scroll_view.add_widget(bunny)
 
-    
-    
-    
+
+

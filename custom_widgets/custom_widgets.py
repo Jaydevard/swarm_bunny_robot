@@ -1,9 +1,13 @@
+from typing import List
+from kivy.core.text import markup
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
+from kivy.uix.dropdown import DropDown
+from kivy.uix.textinput import TextInput
 from functools import partial
 from utils import InformationPopup
 from pathlib import Path
@@ -15,10 +19,12 @@ from kivy.uix.actionbar import ActionBar, ActionItem
 from core.constants import Constants as Cons
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.gridlayout import GridLayout
-from kivy.graphics import Color, InstructionGroup, Line, Point
+from kivy.graphics import Color, InstructionGroup, Line, Point, Rectangle
 from kivy.core.window import Window
 from kivy.lang import Builder
 import random
+from math import pi, cos, sin
+import numpy as np
 import os
 
 Builder.load_file(str(Path(os.getcwd()) / "custom_widgets" / "custom_widgets.kv"))
@@ -121,16 +127,18 @@ class BunnyWidget(Image, ButtonBehavior):
         elif key == "angle":
             anim = Animation(_angle=value, duration=2)
             anim.start(self)
+    
+    def __sub__(self, other):
+        if type(other) == type(self):
+            return (self.pos[0] - other.pos[0], self.pos[1] - other.pos[1])
+        
+
+
 
     @property
     def id(self):
         return self._id
 
-class TransmitterWidget(DragBehavior, Image):
-
-    def __init__(self, **kwargs):
-        super(TransmitterWidget, self).__init__(**kwargs)
-        self.source = str(Path("custom_widgets/images/transmitter_widget/transmitter.png"))
 
 
 class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
@@ -219,6 +227,7 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
             InformationPopup(_type='e', _message="Connection to radio could not be established!!").open()
             self._active_radio_dongle = None
 
+
 class BunnyActionBar(ActionBar):
 
     # need to be completed
@@ -275,10 +284,6 @@ class DragAndResizeRect(DragBehavior, Widget):
         self.pos_hint = {}
         if not self.collide_point(*touch.pos):
             return super(DragAndResizeRect, self).on_touch_up(touch)
-
-        print(touch.ud.keys())
-        if "drop_down_widget" in touch.ud.keys():
-            print("Hello!!") 
 
         diff = self._border_width * 2
         xx, yy  = self.to_widget(*touch.pos, relative=True)
@@ -434,6 +439,76 @@ class DragAndResizeRect(DragBehavior, Widget):
         return super(DragAndResizeRect, self).on_touch_up(touch)
 
 
+class DragAndResizePolygon(DragBehavior, Widget):
+    fill_color = ListProperty([0, 1, 1, 1])
+    border_color = ListProperty([1, 1, 1, 1])
+    line_points = ListProperty([])
+    segments = NumericProperty(100)
+    rot_angle = BoundedNumericProperty(0, min=0, max=360, errorvalue=0)
+
+    def __init__(self, **kwargs):
+        super(DragAndResizePolygon, self).__init__(**kwargs)
+        self.constrain_to_parent_window = True
+        self.segments = kwargs.get("segments", 100)
+        self.size_hint = (None, None)
+        self.shape_settings = None
+
+    def update_property(self, property, value):
+        setattr(self, property, value)
+
+    def on_pos(self, instance, value):
+        self.pos = value
+        self.draw_border()
+
+    def on_size(self, instance, value):
+        self.size = value
+        self.draw_border()
+
+
+    def draw_border(self):
+        points = []
+        angle_step = (pi * 2) / float(self.segments)
+        for i in range(self.segments):
+            x = self.x + (1 + cos((angle_step * i) + pi/2)) * (self.width/2)
+            y = self.y + (1 + sin((angle_step * i) + pi/2)) * (self.height/2)
+            points.extend([x, y])
+        points.extend([points[0], points[1]])
+        self.line_points = points
+
+    def draw_ellipse(self, width, height):
+        self.width = width
+        self.height = height
+        self.draw_border()
+        self.drag_rectangle = [self.x+(self.width/4), 
+                               self.y+(self.height/4), 
+                               0.5*self.width, 
+                               0.5*self.height]
+
+    def check_touch_pos(self, touch):
+        "not completed!!"
+        """
+        Checks whether touch.pos is inside the displayed shape
+        touch.pos is reflected onto the first quadrant
+        """
+        xs = self.line_points[0:len(self.line_points)//4:2]
+        ys = self.line_points[1:len(self.line_points)//4:2]
+        touch_pos_array = np.array([*touch.pos])
+        if touch.x >= self.width/2 and touch.y >= self.height/2:
+            if touch.x < max(xs) and touch.y < max(ys):
+                return True
+            else:
+                return False
+        if touch.x < self.width/2 and touch.y >= self.height/2:
+            pass
+
+    def on_touch_down(self, touch):
+        if not self.collide_point(*touch.pos):
+            return super(DragAndResizePolygon, self).on_touch_up(touch)
+        else:
+            self.check_touch_pos(touch)
+        return super().on_touch_down(touch)
+
+
 class GridWidget(Widget):
     grid_color = ListProperty([0.5, 0.2, 1, 1])
     grid_line_thickness = NumericProperty(1)
@@ -533,7 +608,6 @@ class GridWidget(Widget):
                            self.y+(line_num+1)*line_hp_distance, 
                            self.x+self.width,
                            self.y+(line_num+1)*line_hp_distance)
-
         self.points.clear()
         
         if self.include_points:
@@ -554,12 +628,10 @@ class GridWidget(Widget):
         for pos, (color_x, line_x) in enumerate(self.vertical_lines):
             points = line_x.points[2::]
             label = Label(text=f"{(pos+1)} m")
-            label.pos = points
             label.size = (0, 0)
             label.pos = points
             self.add_widget(label)
             self.labels.append(label)
-    
     
     def update_scale_markings(self):
         if self.labels == []:
@@ -573,16 +645,348 @@ class GridWidget(Widget):
                 label.pos = self.vertical_lines[pos][1].points[2::]
 
 
-class DropDownWidget(BoxLayout):
-    """
-    custom dropdown widget whose anchor is a right-click 
-    """
-    def __init__(self, *args, **kwargs):
-        super(DropDownWidget, self).__init__(**kwargs)
-        self.orientation = "vertical"
-        self.padding = 5
+class ColorDropDown(DropDown):
+    red_slider = ObjectProperty()
+    green_slider = ObjectProperty()
+    blue_slider = ObjectProperty()
+    transparency_slider = ObjectProperty()
+    none_button = ObjectProperty()
 
 
+class ShapeSettings(GridLayout):
+
+    _root = ObjectProperty()
+    _label_font_size = NumericProperty(15)
+
+    _shape_fill_color = ListProperty([0, 0, 0, 1])
+    _shape_border_color = ListProperty([1, 1, 1, 1])
+    _bkg_color = ListProperty([0, 0, 0, 1])
+
+    _width_label = ObjectProperty()
+    _width_text_input = ObjectProperty()
+    _height_label = ObjectProperty()
+    _height_text_input = ObjectProperty()
+    _unit_label = ObjectProperty()
+    _unit_spinner = ObjectProperty()
+    _shape_label = ObjectProperty()
+    _shape_spinner = ObjectProperty()
+    _type_label = ObjectProperty()
+    _type_spinner = ObjectProperty()
+
+    _fill_color_label = ObjectProperty()
+    _fill_color_button = ObjectProperty()
+    _fill_color_red_slider = ObjectProperty()
+    _fill_color_green_slider = ObjectProperty()
+    _fill_color_blue_slider = ObjectProperty()
+    _fill_color_transparency = ObjectProperty()
+    
+    _border_color_label = ObjectProperty()
+    _border_color_button = ObjectProperty()
+    _border_color_red_slider = ObjectProperty()
+    _border_color_green_slider = ObjectProperty()
+    _border_color_blue_slider = ObjectProperty()
+    _border_color_transparency = ObjectProperty()
+
+    _lock_size_label = ObjectProperty()
+    _lock_size_checkbox = ObjectProperty()
+
+    _lock_position_label = ObjectProperty()
+    _lock_position_checkbox = ObjectProperty()
+
+    _segments_label = ObjectProperty(None, allownone=True)
+    _segments_text_input = ObjectProperty(None, allownone=True)
+
+    _place_button = ObjectProperty()
+    _new_button = ObjectProperty()
+    _remove_button = ObjectProperty()
+
+    _segments_label_color = ObjectProperty(None, allownone=True)
+    _segments_label = ObjectProperty(None, allownone=True)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._fill_color_dropdown = ColorDropDown()
+        self._border_color_dropdown = ColorDropDown()
+        Clock.schedule_once(self.initialize, 0.1)
+        self.shape_properties = {}
+        self.shape_canvas = None
+
+        # Slider references
+        self._minimum_fill_slider_x = None
+
+    def on_pos(self, instance, value):
+        self.pos = value
+
+    def on_size(self, instance, value):
+        self.size = value
+
+    def initialize(self, *args):
+        self.shape_canvas = self._root.ids["robot_canvas"]
+
+        self.shape_properties["lock_pos"] = False
+        self.shape_properties["lock_size"] = False
+
+        self._fill_color_button.bind(on_release=self._fill_color_dropdown.open)
+        self._border_color_button.bind(on_release=self._border_color_dropdown.open)
+
+        self._fill_color_dropdown.none_button.bind(on_release=self.set_fill_to_none)
+        self._fill_color_dropdown.red_slider.bind(value=self.set_fill_red)
+        self._fill_color_dropdown.green_slider.bind(value=self.set_fill_green)
+        self._fill_color_dropdown.blue_slider.bind(value=self.set_fill_blue)
+        self._fill_color_dropdown.transparency_slider.bind(value=self.set_fill_transparency)
+
+        self._border_color_dropdown.none_button.bind(on_release=self.set_border_to_none)
+        self._border_color_dropdown.red_slider.bind(value=self.set_border_red)
+        self._border_color_dropdown.green_slider.bind(value=self.set_border_green)
+        self._border_color_dropdown.blue_slider.bind(value=self.set_border_blue)
+        self._border_color_dropdown.transparency_slider.bind(value=self.set_border_transparency)
+
+        self._shape_spinner.bind(text=self.set_shape)
+        self._type_spinner.bind(text=self.set_type)
+        self._unit_spinner.bind(text=self.set_unit)
+        self._width_text_input.bind(text=self.set_width)
+        self._height_text_input.bind(text=self.set_height)
+        self._lock_position_checkbox.bind(active=self.set_lock_pos)
+        self._lock_size_checkbox.bind(active=self.set_lock_size)
+        self._place_button.bind(on_release=self.place_shape)
+        self._new_button.bind(on_release=self.new_shape)
+        self._remove_button.bind(on_release=self.remove_shape)
+
+
+        self._shape_fill_color = [0, 0, 0, 0]
+        self._shape_border_color = [0, 0, 0, 0]
+        self.shape_properties["width"] = 0
+        self.shape_properties["height"] = 0
+        self.shape_properties["unit"] = 'm'
+        self.shape_properties["type"] = "Border"
+        self.shape_properties["shape"] = "Rectangle"
+        self.shape_properties["segments"] = 0
+
+        self._minimum_fill_slider_x = self._fill_color_dropdown.transparency_slider.value_pos[0]
+        self._minimum_border_slider_x = self._border_color_dropdown.transparency_slider.value_pos[0]
+
+    ## label color change
+    def on__bkg_color(self, instance, value):
+        if self._segments_label_color is not None:
+            self._segments_label_color.color = value 
+    
+    ## font size change
+    def on__label_font_size(self, instance, value):
+        if self._segments_label.font_size is not None:
+            self._segments_label.font_size = value  
+
+    #+============= Fill Methods ==================#
+    def set_fill_to_none(self, *args):
+        self._fill_color_button.text = "[i]None[/i]"
+
+        current_cursor_pos = list(self._fill_color_dropdown.red_slider.value_pos)
+        current_cursor_pos[0] = self._minimum_fill_slider_x
+        self._fill_color_dropdown.red_slider.value_pos = tuple(current_cursor_pos)
+
+        current_cursor_pos = list(self._fill_color_dropdown.green_slider.value_pos)
+        current_cursor_pos[0] = self._minimum_fill_slider_x
+        self._fill_color_dropdown.green_slider.value_pos = tuple(current_cursor_pos)
+
+        current_cursor_pos = list(self._fill_color_dropdown.blue_slider.value_pos)
+        current_cursor_pos[0] = self._minimum_fill_slider_x
+        self._fill_color_dropdown.blue_slider.value_pos = tuple(current_cursor_pos)
+
+        current_cursor_pos = list(self._fill_color_dropdown.transparency_slider.value_pos)
+        current_cursor_pos[0] = self._minimum_fill_slider_x
+        self._fill_color_dropdown.transparency_slider.value_pos = tuple(current_cursor_pos)
+
+        self._fill_color_dropdown.dismiss()
+        self._shape_fill_color = [0, 0, 0, 0]        
+
+
+    def set_fill_red(self, instance, value):
+        self._shape_fill_color[0] = float(value)
+
+    def set_fill_green(self, instance, value):
+        self._shape_fill_color[1] = float(value)
+        
+
+    def set_fill_blue(self, instance, value):
+        self._shape_fill_color[2] = float(value)
+
+    def set_fill_transparency(self, instance, value):
+        self._shape_fill_color[3] = float(value)
+
+    def on__shape_fill_color(self, *args):
+        if self._shape_fill_color == [0, 0, 0, 0] or self._shape_fill_color[-1] == 0:
+            self._fill_color_button.text = "[i]None[/i]"
+        else: 
+            self._fill_color_button.text = ""
+        self.shape_properties["fill_color"] = self._shape_fill_color
+
+    #================================================#
+    #================================================#
+
+
+    #+============= Border Methods ==================#
+
+    def set_border_to_none(self, *args):
+        self._border_color_button.text = "[i]None[/i]"
+        current_cursor_pos = list(self._border_color_dropdown.red_slider.value_pos)
+        current_cursor_pos[0] = self._minimum_border_slider_x
+        self._border_color_dropdown.red_slider.value_pos = tuple(current_cursor_pos)
+
+        current_cursor_pos = list(self._border_color_dropdown.green_slider.value_pos)
+        current_cursor_pos[0] = self._minimum_border_slider_x
+        self._border_color_dropdown.green_slider.value_pos = tuple(current_cursor_pos)
+
+        current_cursor_pos = list(self._border_color_dropdown.blue_slider.value_pos)
+        current_cursor_pos[0] = self._minimum_border_slider_x
+        self._border_color_dropdown.blue_slider.value_pos = tuple(current_cursor_pos)
+
+        current_cursor_pos = list(self._border_color_dropdown.transparency_slider.value_pos)
+        current_cursor_pos[0] = self._minimum_border_slider_x
+        self._border_color_dropdown.transparency_slider.value_pos = tuple(current_cursor_pos)
+
+        self._border_color_dropdown.dismiss()
+        self._shape_border_color = [0, 0, 0, 0]  
+    #===============================================#
+    #===============================================#
+
+
+    #============= Border Properties ===============#
+    def set_border_red(self, instance, value):
+        self._shape_border_color[0] = float(value)
+
+    def set_border_green(self, instance, value):
+        self._shape_border_color[1] = float(value)
+        
+    def set_border_blue(self, instance, value):
+        self._shape_border_color[2] = float(value)
+
+    def set_border_transparency(self, instance, value):
+        self._shape_border_color[3] = float(value)
+
+    def on__shape_border_color(self, *args):
+        if self._shape_border_color == [0, 0, 0, 0] or self._shape_border_color[-1] == 0:
+            self._border_color_button.text = "[i]None[/i]"
+        else: 
+            self._border_color_button.text = ""
+        self.shape_properties["border_color"] = self._shape_border_color
+    #===============================================#
+    #===============================================#
+
+
+    #============== Polygon segments ===============#
+    def add_segments_section(self, *args):
+        # Called when shape is set to "Polygon"  
+        # Add the segments Label
+        self._segments_label = Label()
+        self._segments_label.font_size = self._label_font_size
+        self._segments_label.text = "[i]Segments:[/i]"
+        self._segments_label.markup = True
+        self.add_widget(self._segments_label)
+
+        def update_label_canvas(obj, label, bkg_color, *largs):
+            _segments_label_rect = Rectangle()  
+            _segments_label_rect.pos = label.pos 
+            _segments_label_rect.size = label.size   
+            obj._segments_label_color = Color(*bkg_color)    
+            obj._segments_label.canvas.before.add(obj._segments_label_color) 
+            obj._segments_label.canvas.before.add(_segments_label_rect)   
+
+        Clock.schedule_once(partial(update_label_canvas,
+                            self, 
+                            self._segments_label, 
+                            self._bkg_color), 
+                            0.1)
+
+        # Add the text input Label
+        self._segments_text_input = TextInput()
+        self._segments_text_input.multiline = False
+        self._segments_text_input.background_color = [0, 0, 0, 1]
+        self._segments_text_input.foreground_color = [1, 1, 1, 1]
+        self._segments_text_input.input_filter = "float"
+        self.add_widget(self._segments_text_input)
+        self._segments_text_input.bind(text=self.add_num_segments)
+
+    def remove_segments_section(self, *args):
+        # called when shape is anything except Polygon
+        if self._segments_label is not None and self._segments_text_input is not None:
+            self.remove_widget(self._segments_text_input)
+            self.remove_widget(self._segments_label)
+            self._segments_label_color = None
+    #===============================================#
+    #===============================================#
+
+
+    #=========== set Shape Properties =============#
+    def set_shape(self, instance, value):
+        self.shape_properties["shape"] = value
+        if str(value).lower() == "Polygon".lower():
+            self.add_segments_section()
+        else:
+            self.remove_segments_section()
+            self.shape_properties["segments"] = 0
+
+    def set_width(self, instance, value):
+        if value == '':
+            value = 0
+        self.shape_properties["width"] = float(value)
+
+    def set_height(self, instance, value):
+        if value == '':
+            value = 0
+        self.shape_properties["height"] = float(value)
+
+    def set_unit(self, instance, value):
+        self.shape_properties["unit"] = str(value)
+
+    def set_type(self, instance, value):
+        self.shape_properties["type"] = str(value)
+
+    def set_lock_pos(self, instance, value):
+        self.shape_properties["lock_pos"] = bool(value)
+
+    def set_lock_size(self, instance, value):
+        value = bool(value)
+        self._width_text_input.readonly = value
+        self._height_text_input.readonly = value
+        self.shape_properties["lock_size"] = value
+
+    def add_num_segments(self, instance, value):
+        self.shape_properties["segments"] = value
+
+    def new_shape(self, instance):
+        print(self.shape_properties)
+
+    #======== Callbacks to Robot Canvas =======#
+
+    def place_shape(self, instance):
+        if self.shape_canvas.add_shape(self.shape_properties):
+            self._place_button.disabled = True
+            
+    def remove_shape(self, instance):
+        if not self._place_button.disabled:
+            InformationPopup(_type="e", _message="Shape has not been placed!").open()
+
+    def update_property(self, property, value):
+        if property.lower() == "height":
+            self._height_text_input.text = value
+
+        elif property.lower() == "width":
+            self._width_text_input.text = value
+
+    #===============================================#
+    #===============================================#
+
+
+
+
+    
+
+
+
+
+
+
+
+    
 
 
 
