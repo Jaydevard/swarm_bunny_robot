@@ -65,6 +65,19 @@ class RobotCanvas(FloatLayout):
         self.add_grid = True
         self.gridline_widget = self.add_gridlines() if self.add_grid else None 
 
+        # testing 
+        Clock.schedule_once(self.test_shapes, 5)
+
+    def test_shapes(self, *args):
+        DAR_poly = DragAndResizePolygon()
+        DAR_poly.pos = self.pos
+        DAR_poly.size_hint = (None, None) 
+        DAR_poly.size = (200, 200)
+        DAR_poly.segments = 8
+        self.add_widget(DAR_poly)
+        DAR_poly.draw_ellipse(*DAR_poly.size)
+        print (DAR_poly.size)
+    
     def _update_pos(self, instance, pos):
         self.pos = pos
         self._minimum_coord = self.pos

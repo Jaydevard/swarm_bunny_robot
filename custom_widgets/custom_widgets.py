@@ -9,6 +9,8 @@ from kivy.uix.widget import Widget
 from kivy.uix.dropdown import DropDown
 from kivy.uix.textinput import TextInput
 from functools import partial
+
+from usb import core
 from utils import InformationPopup
 from pathlib import Path
 from kivy.uix.behaviors import DragBehavior, button
@@ -24,6 +26,7 @@ from kivy.core.window import Window
 from kivy.lang import Builder
 import random
 from math import pi, cos, sin
+import math
 import numpy as np
 import os
 
@@ -128,17 +131,14 @@ class BunnyWidget(Image, ButtonBehavior):
             anim = Animation(_angle=value, duration=2)
             anim.start(self)
     
+    # bunny_x - bunny_y = diff in pos(reference is center of each)
     def __sub__(self, other):
         if type(other) == type(self):
-            return (self.pos[0] - other.pos[0], self.pos[1] - other.pos[1])
-        
-
-
+            return (self.center[0] - other.center[0], self.center[1] - other.center[1])
 
     @property
     def id(self):
         return self._id
-
 
 
 class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
@@ -321,6 +321,7 @@ class DragAndResizeRect(DragBehavior, Widget):
                 Window.set_system_cursor('size_we')
             else:
                 Window.set_system_cursor('crosshair')
+            
             touch.ud['edit_mode'] = self._edit_mode
             
             if self._edit_mode != 'pos':
@@ -332,6 +333,8 @@ class DragAndResizeRect(DragBehavior, Widget):
     def on_touch_move(self, touch):
         if 'size_node' in touch.ud.keys():
             xx, yy = self.to_widget(*touch.pos, relative=True)
+            if "edit_mode" not in touch.ud.keys():
+                return super(DragAndResizeRect, self).on_touch_move(touch)
             if touch.ud["edit_mode"] == 'top':
                 if yy > 0:
                     if self.size_hint_y is None:
@@ -444,7 +447,8 @@ class DragAndResizePolygon(DragBehavior, Widget):
     border_color = ListProperty([1, 1, 1, 1])
     line_points = ListProperty([])
     segments = NumericProperty(100)
-    rot_angle = BoundedNumericProperty(0, min=0, max=360, errorvalue=0)
+    border_width = NumericProperty(6)
+    _touch_region = StringProperty("")
 
     def __init__(self, **kwargs):
         super(DragAndResizePolygon, self).__init__(**kwargs)
@@ -484,29 +488,171 @@ class DragAndResizePolygon(DragBehavior, Widget):
                                0.5*self.width, 
                                0.5*self.height]
 
-    def check_touch_pos(self, touch):
-        "not completed!!"
+    def check_relative_touch_pos(self, touch, in_border=False):
         """
         Checks whether touch.pos is inside the displayed shape
         touch.pos is reflected onto the first quadrant
+        and checked        
         """
-        xs = self.line_points[0:len(self.line_points)//4:2]
-        ys = self.line_points[1:len(self.line_points)//4:2]
-        touch_pos_array = np.array([*touch.pos])
-        if touch.x >= self.width/2 and touch.y >= self.height/2:
-            if touch.x < max(xs) and touch.y < max(ys):
-                return True
+        x, y = self.to_widget(*touch.pos, relative=True)
+        center = self.to_widget(*self.center, relative=True)
+
+        touch_arr = np.array([x - center[0], y - center[1]])   # with respect to center
+        quadrant = 1
+        
+        # find which quadrant the touch is
+        if x >= center[0]:
+            if y >= center[1]:
+                pass
+                # no reflection required
             else:
-                return False
-        if touch.x < self.width/2 and touch.y >= self.height/2:
-            pass
+                # reflect on x-axis
+                ref_arr = np.array([[1, 0], [0, -1]])
+                touch_arr = np.matmul(touch_arr, ref_arr)
+
+        elif y >= center[1]:
+            ref_arr = np.array([[-1, 0], [0, 1]])
+            touch_arr = np.matmul(touch_arr, ref_arr)
+
+        else: 
+            ref_arr = np.array([[0, -1], [-1, 0]])
+            touch_arr = np.matmul(touch_arr, ref_arr)
+
+        line_coords = list(zip(self.line_points[0::2], self.line_points[1::2]))
+
+        # get the angle of the touch.
+        touch_angle = math.atan(touch_arr[1] / touch_arr[0])
+
+        # convert relative line coordinates 
+        first_quadrant_coords = []
+        
+        for coord in line_coords:
+            coord = self.to_widget(*coord, relative=True)
+            coord = (round(coord[0] - center[0], 5), round(coord[1] - center[1], 5))
+            
+            # Cut down to first quadrant only
+            if coord[0] >= 0 and coord[1] >= 0:
+                try:
+                    coord = coord + (math.atan(coord[1] / coord[0]), )
+                except ZeroDivisionError:
+                    coord = coord + (pi/2, )
+                first_quadrant_coords.append(coord)    
+
+        # sort ascending angle
+        sorted_first_quadrant_coords = sorted(first_quadrant_coords, key=lambda x:x[-1])
+        for index, coord in enumerate(sorted_first_quadrant_coords):
+            if index == len(sorted_first_quadrant_coords) - 1:
+                break
+            if coord[-1] <= touch_angle <= sorted_first_quadrant_coords[index+1][-1]:
+                x1 = sorted_first_quadrant_coords[index+1][0]
+                y1 = sorted_first_quadrant_coords[index+1][1]
+                x2 = coord[0]
+                y2 = coord[1]
+                r = (x2*(y1-y2) - y2*(x1-x2)) / ( ( cos(touch_angle) * (y1-y2)  ) -  ( sin(touch_angle) * (x1-x2) ) )
+                r_touch = touch_arr[0] / cos(touch_angle) 
+                return_val = [False, False]
+
+                if r_touch <= (r + self.border_width*2 ):
+                    return_val[0] = True
+                    if in_border and abs(r_touch - r) <= (self.border_width*2):
+                        return_val[1] = True
+                return return_val        
+
+    def touch_relative_angle(self, touch):
+        (x, y) = self.to_widget(*touch.pos, relative=True)
+        center = self.to_widget(*self.center, relative=True)
+        (x, y) = (x - center[0], y - center[1])
+        if x >= 0:
+            if y >= 0:
+                return math.atan(y/x)
+            elif y <= 0:
+                return math.atan(y/x) + 2*pi
+        elif y >= 0:
+            return math.atan(y/x) + pi
+        else:
+            return math.atan(y/x) + pi
 
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
+            self.drag_timeout = 0
             return super(DragAndResizePolygon, self).on_touch_up(touch)
         else:
-            self.check_touch_pos(touch)
-        return super().on_touch_down(touch)
+            is_within_shape, is_within_border = self.check_relative_touch_pos(touch, in_border=True)
+            
+            if touch.button == "left":
+                self._touch_region = "undef"
+            if is_within_shape:
+                self.drag_timeout = 10000000
+            if is_within_border:
+                touch_angle = self.touch_relative_angle(touch)
+                if pi/4 <= touch_angle < 0.75*pi:
+                    self._touch_region = "n"
+                    Window.set_system_cursor('size_ns')
+
+                elif 0.75*pi <= touch_angle < 1.25*pi:
+                    Window.set_system_cursor('size_we')
+                    self._touch_region = "w"
+
+                elif 1.25*pi <= touch_angle < 1.75*pi:
+                    Window.set_system_cursor('size_ns')
+                    self._touch_region = "s"
+                else: 
+                    Window.set_system_cursor('size_we')
+                    self._touch_region = "e"
+
+            touch.ud["touch_region"] = self._touch_region
+            
+            if self._touch_region != "undef":
+                touch.ud["size_node"] = self
+                return True
+        
+        return super(DragAndResizePolygon, self).on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        xx, yy = self.to_widget(*touch.pos, relative=True)
+        if "size_node" in touch.ud.keys():
+            if "touch_region" in touch.ud.keys():
+                if touch.ud["touch_region"] == "undef":
+                    return super(DragAndResizePolygon, self).on_touch_move(touch)
+                
+                elif touch.ud["touch_region"] == 'n':
+                    if yy > 0:
+                        if self.size_hint_y is None:
+                            self.height = min(yy, self.parent.height)
+                        else:
+                            self.size_hint_y = yy / self.parent.height
+                            if self.size_hint_y >= 1:
+                                self.size_hint_y = 1
+                elif touch.ud["touch_region"] == "e":
+                    if xx > 0:
+                        if self.size_hint_x is None:
+                            self.width = xx
+                        else:
+                            self.size_hint_x = xx / self.parent.width
+                            self.width = xx
+                elif touch.ud["touch_region"] == "w":
+                    if self.width - xx > 0:
+                        if self.size_hint is None:
+                            self.width -= xx
+                            self.x += xx
+                        else:
+                            self.size_hint_x = min(1, (self.width - xx) / self.parent.width)
+                            self.x += xx
+                elif touch.ud["touch_region"] == "s":
+                    if self.height - yy > 0:
+                        if self.size_hint_y is None:
+                            self.height -= yy
+                            self.y += yy
+                        else:
+                            self.size_hint_y = (self.height - yy) / self.parent.height
+                            self.y += yy
+
+
+        return super(DragAndResizePolygon, self).on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        Window.set_system_cursor('arrow')
+        return super(DragAndResizePolygon, self).on_touch_up(touch)
 
 
 class GridWidget(Widget):
@@ -971,7 +1117,6 @@ class ShapeSettings(GridLayout):
 
         elif property.lower() == "width":
             self._width_text_input.text = value
-
     #===============================================#
     #===============================================#
 
