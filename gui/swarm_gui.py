@@ -19,7 +19,6 @@ from core.constants import Constants as Cons
 from pathlib import Path
 from functools import partial
 
-
 class SwarmGUI(App):
     """
     RobotVisualization Class
@@ -27,6 +26,75 @@ class SwarmGUI(App):
     Main controls
     """
 
+
+class CanvasManager:
+    """
+    Manages the widgets on the canvas
+    """
+
+    def __init__(self, widget, **kwargs) -> None:
+        self._parent = widget
+        self._canvas = widget.canvas
+        self._widgets = []
+        self._active_widget = None
+
+
+    def add_widget(self, shape_settings, shape_properties):
+        if self._active_widget is not None:
+            return
+        print(shape_properties)
+        widget_properties = {}
+        widget = None
+        mode = "Fill"
+        if shape_properties["type"] == "Border":
+            shape_properties["fill_color"] = [0, 0, 0, 0]
+            print("Border detected!!")
+            mode = "Border"
+
+        if shape_properties["shape"] == "Rectangle":
+            widget = DragAndResizeRect()
+        elif shape_properties["shape"] == "Ellipse":
+            widget = DragAndResizePolygon()
+    
+        widget.update_property("fill_color", shape_properties["fill_color"])
+        widget.update_property("border_color", shape_properties["border_color"])
+        widget.update_property("mode", mode )
+        shape_settings.bind(_shape_fill_color=widget.set_fill_color)
+        shape_settings.bind(_shape_border_color=widget.set_border_color)
+        shape_settings._lock_size_checkbox.bind(active=widget.set_lock_size)
+        shape_settings._lock_position_checkbox.bind(active=widget.set_lock_pos)
+            
+        widget_properties["widget"] = widget
+        widget_properties["type"] = shape_properties["type"]
+        widget_properties["pos"] = self._parent.center
+        print("Shape added!!")
+        self._parent.add_widget(widget)
+        widget.pos = widget.parent.pos
+        self._active_widget = widget
+        self._widgets.append(widget_properties)
+        return widget
+
+    def remove_widget(self, widget):
+        for wid in self._widgets:
+            if wid == widget:
+                self._widgets.remove(wid)
+        self._parent.remove_widget(widget)
+
+    def untrack_widget(self, shape_settings, widget):
+        widget.update_property("_fixed", True)
+        shape_settings.unbind(_shape_fill_color=widget.set_fill_color)
+        shape_settings.unbind(_shape_border_color=widget.set_border_color)
+        shape_settings._lock_size_checkbox.unbind(active=widget.set_lock_size)
+        shape_settings._lock_position_checkbox.unbind(active=widget.set_lock_pos)
+        self._active_widget = None
+
+    def remove_widget(self, shape_settings, widget):
+        for widget in self._widgets:
+            for item, value in widget.items():
+                if value == item:
+                    self._parent.remove_widget(widget)
+                    self._widget.remove(widget)
+        return True
 
 class RobotCanvas(FloatLayout):
     """
@@ -53,30 +121,17 @@ class RobotCanvas(FloatLayout):
         self._minimum_coord = self.pos
         self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
         self._bunny_widgets = {}
-        self.drop_down = None
-        self.canvas_shapes = []
-        self.polygon = None
         self.pos = (0 ,0)
         self.add_bunny_widget(bunny_uid="bunny_1")
+        time.sleep(5)
         Clock.schedule_interval(partial(self.update_bunny_rotation, 
                                         "bunny_1", 
                                          45), 25)
-        Clock.schedule_once(self.add_draggable_and_resizable_rect, 4)
+        Clock.schedule_interval(self.next_frame, 1)
+        
         self.add_grid = True
         self.gridline_widget = self.add_gridlines() if self.add_grid else None 
-
-        # testing 
-        Clock.schedule_once(self.test_shapes, 5)
-
-    def test_shapes(self, *args):
-        DAR_poly = DragAndResizePolygon()
-        DAR_poly.pos = self.pos
-        DAR_poly.size_hint = (None, None) 
-        DAR_poly.size = (200, 200)
-        DAR_poly.segments = 8
-        self.add_widget(DAR_poly)
-        DAR_poly.draw_ellipse(*DAR_poly.size)
-        print (DAR_poly.size)
+        self.canvas_manager = CanvasManager(self)
     
     def _update_pos(self, instance, pos):
         self.pos = pos
@@ -87,6 +142,12 @@ class RobotCanvas(FloatLayout):
 
     def _update_size(self, instance, size):
         self.size = size
+
+
+    def next_frame(self, *args):
+        print("time elapsed", end="")
+        print(args)
+
 
     ## Gridlines methods
     def add_gridlines(self):
@@ -146,39 +207,49 @@ class RobotCanvas(FloatLayout):
         """
         self._bunny_widgets[bunny_uid]["angle"] = rotation_angle
 
-    def add_draggable_and_resizable_rect(self, *args):
-        """
-        Adds a draggable and resizable rectangle widget to
-        the canvas 
-        """
-        self.draggable_and_resizable_rect = DragAndResizeRect()
-        self.canvas_shapes.append(self.draggable_and_resizable_rect)
-        self.draggable_and_resizable_rect.pos = self.pos
-        self.draggable_and_resizable_rect.size = (0.5*self.size[0], 0.5*self.size[1])
-        self.add_widget(self.draggable_and_resizable_rect)
-
     #===========================================================#
     #===========================================================#
 
     #=================== Shape Methods =========================#
-    def add_shape(self, shape_properties):
+    def add_shape(self, shape_settings, shape_properties):
+        widget_ref = None
         try:
             if shape_properties["border_color"][-1] == 0.0 and \
                 shape_properties["fill_color"][-1] == 0.0:
                 InformationPopup(_type='e', _message="Both Border Color and Fill Color are fully transparent").open()
                 return False
-            
+            elif shape_properties["border_color"][-1] == 0.0 and shape_properties["type"] == "Border":
+                InformationPopup(_type="e", _message="Border has no color!").open()
+                return False
 
+            elif shape_properties["fill_color"][-1] == 0.0 and shape_properties["type"] == "Obstacle":
+                InformationPopup(_type="e", _message="Obstacle has no fill_color!!").open()
+                return False
 
+            widget_ref = self.canvas_manager.add_widget(shape_settings, shape_properties)
+            return widget_ref
+        except Exception as e:
+            print(e)
+            return False    
+
+    def save_widget(self, shape_settings, widget):
+        try:
+            self.canvas_manager.untrack_widget(shape_settings, widget)
             return True
         except Exception as e:
             print(e)
-    
-    def add_polygon():
-        pass
-    #==========================================================#
-    #==========================================================#
+            return False
 
+    def remove_from_canvas(self, shape_settings, widget):
+        try:
+            self.canvas_manager.remove_widget(shape_settings, widget)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    #==========================================================#
+    #==========================================================#
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):

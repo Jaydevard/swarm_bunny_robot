@@ -4,7 +4,7 @@ Config.set('input', 'mouse', 'mouse,disable_multitouch')
 
 
 if __name__ == "__main__":
-
+    
     Simulation = SwarmGUI()
     Simulation.run()
 

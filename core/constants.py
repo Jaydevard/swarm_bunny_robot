@@ -1,3 +1,7 @@
+from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProperty, \
+    ReferenceListProperty, ListProperty, NumericProperty, BooleanProperty, DictProperty
+
+
 __all__ = ["Constants"]
 
 
@@ -10,3 +14,6 @@ class Constants:
     RADIO_CONN_TIMEOUT = 10  # s
     BUNNY_STATES = ("formation", "roam", "charge", "idle")
     SAFETY_MARGIN = 0.10 # m
+    BUNNY_DIAMETER = 0.30 # m
+    CANVAS_SCALE = ListProperty([100, "1", "m"]) # 100 pixels represents 1 m
+

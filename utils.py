@@ -86,7 +86,6 @@ class Scale(Constants):
     
     def __init__(self, **kwargs) -> None:
         self._scale = kwargs.get("scale", [100, 1, "m"])
-        pass
     
     def set_scale(self, scale):
         self._scale = scale

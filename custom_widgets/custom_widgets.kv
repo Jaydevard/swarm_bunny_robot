@@ -142,6 +142,37 @@
         ActionButton:
             text: "State"
         
+<DragAndResizeTriangle>:
+    # Triangle Definitions
+    drag_rectangle: self.x, self.y, self.width, self.height
+    drag_timeout: 1000000
+    drag_distance: 0
+    canvas.after:
+        Color:
+            rgba: 1, 1, 1, 0
+        Rectangle:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: self._fill_color
+        Triangle:
+            points: self._triangle_points
+
+        Color:
+            rgba: self._border_color
+
+        Line:
+            cap: "square"
+            joint: "miter"
+            width: self._border_width
+            points: self._border_points
+
+        # Color:
+        #     rgba: self._border_color
+        # Point:
+        #     points: self._triangle_points
+        #     pointsize: self.point_size
+
 
 <DragAndResizeRect>:
     # drag definitions
@@ -150,13 +181,13 @@
     drag_distance: 0
     canvas.after:
         Color:
-            rgba: self._fill_color
+            rgba: self.fill_color
         Rectangle:
             size: self.size
             pos: self.pos
         
         Color:
-            rgba: self._border_color
+            rgba: self.border_color
         Line:
             cap: "square"
             joint: 'miter'
@@ -172,16 +203,25 @@
 
     canvas.after:
         Color: 
-            rgba: self.border_color
+            rgba: self.fill_color
         Ellipse:
             pos: self.pos
             size: self.size
             segments: self.segments
         Color:
-            rgba: self.fill_color
+            rgba: self.border_color
         Line:
             points: self.line_points
             width: self.border_width
+
+
+
+
+
+
+
+
+
 
 
 <GridWidget>:
@@ -273,14 +313,6 @@
 
 
 <ShapeSettings>:
-    _width_label: _width_label
-    _width_text_input:_width_text_input
-    
-    _height_label: _height_label
-    _height_text_input: _height_text_input
-    
-    _unit_label: _unit_label
-    _unit_spinner: _unit_spinner
     
     _shape_label: _shape_label
     _shape_spinner: _shape_spinner
@@ -313,80 +345,6 @@
     
     #(r1, c1)
     Label:
-        id: _width_label
-        text: "[i]Width:[/i]"
-        font_size: self.parent._label_font_size
-        markup: True
-        canvas.before:
-            Color:
-                rgba: self.parent._bkg_color
-            Rectangle:
-                pos: self.pos
-                size: self.size
-
-
-    #(r1, c2)
-    TextInput:
-        id: _width_text_input
-        multiline: False
-        background_color: 0, 0, 0, 1
-        foreground_color: 1, 1, 1, 1
-        input_filter: "float"
-    
-    #(r1, c3)
-    Label:
-        id: _height_label
-        text: "[i]Height:[/i]"
-        font_size: self.parent._label_font_size
-        markup: True
-        canvas.before:
-            Color:
-                rgba: self.parent._bkg_color
-            Rectangle:
-                pos: self.pos
-                size: self.size
-
-    #(r1, c4)
-    TextInput:
-        id: _height_text_input
-        multiline: False
-        background_color: 0, 0, 0, 1
-        foreground_color: 1, 1, 1, 1
-        input_filter: "float"
-    
-
-    #(r1, c5)
-    Label:
-        id: _unit_label
-        text: "Unit"
-        font_size: self.parent._label_font_size
-        markup: True
-        canvas.before:
-            Color:
-                rgba: self.parent._bkg_color
-            Rectangle:
-                pos: self.pos
-                size: self.size
-
-
-    #(r1, c6)
-    Spinner:
-        id: _unit_spinner
-        text: "m"
-        values: ["m", "ft"]
-        size_hint_y: None
-        height: '25sp'
-        sync_height: True
-        canvas.before:
-            Color:
-                rgba: 0, 0, 0, 1
-            Rectangle: 
-                pos: self.pos
-                size: self.size
-
-
-    #(r2, c1)
-    Label:
         id: _shape_label
         text: "Shape"
         markup: True
@@ -398,14 +356,14 @@
                 pos: self.pos
                 size: self.size
 
-    #(r2, c2)
+    #(r1, c2)
     Spinner:
         id: _shape_spinner
         text: "Rectangle"
         values: ["Rectangle","Triangle", "Polygon","Ellipse", "Custom"]
         sync_height: True
     
-    #(r2, c3)
+    #(r1, c3)
     Label:
         id: _fill_color_label
         text: "Fill"
@@ -418,7 +376,7 @@
                 pos: self.pos
                 size: self.size
 
-    #(r2, c4)
+    #(r1, c4)
     Button:
         id: _fill_color_button
         markup: True
@@ -431,7 +389,7 @@
                 pos: self.pos
                 size: self.size
 
-    #(r2, c5)
+    #(r1, c5)
     Label:
         id: _type_label
         text: "Type"
@@ -443,11 +401,11 @@
                 pos: self.pos
                 size: self.size
     
-    #(r2, c6)
+    #(r1, c6)
     Spinner: 
         id: _type_spinner
-        text: "Zone"
-        values: ["Zone", "Obstacle", "Target"]
+        text: "Border"
+        values: ["Border", "Obstacle"]
         canvas.before:
             Color:
                 rgba: self.parent._bkg_color
@@ -457,7 +415,7 @@
         sync_height: True
 
 
-    #(r3, c1)
+    #(r2, c1)
     Label:
         id: _border_color_label
         text: "Border "
@@ -471,7 +429,7 @@
                 pos: self.pos
                 size: self.size
 
-    #(r3, c2)
+    #(r2, c2)
     Button: 
         id: _border_color_button
         markup: True
@@ -484,7 +442,7 @@
                 pos: self.pos
                 size: self.size
         
-    #(r3, c3)
+    #(r2, c3)
     Label:
         id: _lock_size_label
         text: "Lock Size"
@@ -496,7 +454,7 @@
                 pos: self.pos
                 size: self.size
     
-    #(r3, c4)
+    #(r2, c4)
     CheckBox:
         id: _lock_size_checkbox
         color: 1, 1, 1, 1
@@ -507,7 +465,7 @@
                 pos: self.pos
                 size: self.size
 
-    #(r3, c5)
+    #(r2, c5)
     Label:
         id: _lock_position_label
         text: "Lock Pos"
@@ -519,7 +477,7 @@
                 pos: self.pos
                 size: self.size
 
-    #(r3, c6)
+    #(r2, c6)
     CheckBox:
         id: _lock_position_checkbox
         color: 1, 1, 1, 1
@@ -529,14 +487,14 @@
             Rectangle:
                 pos: self.pos
                 size: self.size
-    #(r4, c1)
+    #(r3, c1)
     Button:
         id: _place_button
         text: "Place"
         pos: self.pos
         size: self.size
     
-    #(r4, c2)
+    #(r3, c2)
     Button:
         id: _new_button
         text: "New"
@@ -547,7 +505,7 @@
                 pos: self.pos
                 size: self.size
 
-    #(r4, c3)
+    #(r3, c3)
     Button:
         id: _remove_button
         text: "Remove"
