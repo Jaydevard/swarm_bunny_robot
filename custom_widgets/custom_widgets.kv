@@ -149,29 +149,23 @@
     drag_distance: 0
     canvas.after:
         Color:
-            rgba: 1, 1, 1, 0
+            rgba: 1, 1, 1, 1
         Rectangle:
             pos: self.pos
             size: self.size
         Color:
-            rgba: self._fill_color
+            rgba: self.fill_color
         Triangle:
             points: self._triangle_points
 
         Color:
-            rgba: self._border_color
+            rgba: self.border_color
 
         Line:
             cap: "square"
             joint: "miter"
             width: self._border_width
             points: self._border_points
-
-        # Color:
-        #     rgba: self._border_color
-        # Point:
-        #     points: self._triangle_points
-        #     pointsize: self.point_size
 
 
 <DragAndResizeRect>:
@@ -213,15 +207,6 @@
         Line:
             points: self.line_points
             width: self.border_width
-
-
-
-
-
-
-
-
-
 
 
 <GridWidget>:

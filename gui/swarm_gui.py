@@ -5,7 +5,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.dropdown import DropDown
 from kivy.clock import Clock
-from kivy.properties import ObjectProperty
+from kivy.properties import ObjectProperty, NumericProperty, BooleanProperty
 from kivy.core.window import Window
 from kivy.graphics import Color, Ellipse, Line
 from kivy.graphics.instructions import InstructionGroup
@@ -18,6 +18,8 @@ import math
 from core.constants import Constants as Cons
 from pathlib import Path
 from functools import partial
+from kivy.base import EventDispatcher
+
 
 class SwarmGUI(App):
     """
@@ -26,23 +28,56 @@ class SwarmGUI(App):
     Main controls
     """
 
-
-class CanvasManager:
+class CanvasManager(Widget):
     """
     Manages the widgets on the canvas
     """
+    _keyboard_released = BooleanProperty(False)
+
 
     def __init__(self, widget, **kwargs) -> None:
+        super().__init__(**kwargs)
         self._parent = widget
         self._canvas = widget.canvas
         self._widgets = []
         self._active_widget = None
+        self._pos = 0
+        self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
+        self._keyboard.bind(on_key_down=self._on_keyboard_down)
+        Window.bind(on_motion=self.on_window_motion)
 
+    def on_window_motion(self, *args):
+        if self._keyboard is not None:
+            return
+        for arg in args:
+            if type(arg).__name__ == "MouseMotionEvent":
+                pos_x = arg.pos[0]
+                pos_y = arg.pos[1]
+                if ((self._parent.x < pos_x < self._parent.width + self._parent.x) and
+                    (self._parent.y < pos_y < self._parent.height + self._parent.y)):
+                    if self._keyboard is None:
+                        self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
+                        self._keyboard.bind(on_key_down=self._on_keyboard_down)
+
+    def _keyboard_closed(self):
+        if self._keyboard is not None:
+            self._keyboard.unbind(on_key_down=self._on_keyboard_down)
+            self._keyboard = None
+            self._keyboard_released = True
+
+
+    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+        for wid in self._widgets:
+            try:
+                wid["widget"]._on_keyboard_down(keyboard, keycode, text, modifiers)
+            except Exception as e:
+                print( wid, e)
+                pass
+        return True
 
     def add_widget(self, shape_settings, shape_properties):
         if self._active_widget is not None:
             return
-        print(shape_properties)
         widget_properties = {}
         widget = None
         mode = "Fill"
@@ -55,10 +90,18 @@ class CanvasManager:
             widget = DragAndResizeRect()
         elif shape_properties["shape"] == "Ellipse":
             widget = DragAndResizePolygon()
-    
+        elif shape_properties["shape"] == "Polygon":
+            widget = DragAndResizePolygon()
+            widget.update_property("segments", shape_properties["segments"])
+            shape_settings._segments_text_input.bind(text=widget.set_segments)            
+
+        # elif shape_properties["shape"] == "Triangle":
+        #     widget = DragAndResizeTriangle()
+
         widget.update_property("fill_color", shape_properties["fill_color"])
         widget.update_property("border_color", shape_properties["border_color"])
         widget.update_property("mode", mode )
+        widget.update_property("canvas_manager", self)
         shape_settings.bind(_shape_fill_color=widget.set_fill_color)
         shape_settings.bind(_shape_border_color=widget.set_border_color)
         shape_settings._lock_size_checkbox.bind(active=widget.set_lock_size)
@@ -74,11 +117,6 @@ class CanvasManager:
         self._widgets.append(widget_properties)
         return widget
 
-    def remove_widget(self, widget):
-        for wid in self._widgets:
-            if wid == widget:
-                self._widgets.remove(wid)
-        self._parent.remove_widget(widget)
 
     def untrack_widget(self, shape_settings, widget):
         widget.update_property("_fixed", True)
@@ -86,15 +124,21 @@ class CanvasManager:
         shape_settings.unbind(_shape_border_color=widget.set_border_color)
         shape_settings._lock_size_checkbox.unbind(active=widget.set_lock_size)
         shape_settings._lock_position_checkbox.unbind(active=widget.set_lock_pos)
+        try:
+            shape_settings._segments_text_input.unbind(text=widget.set_segments)
+        except Exception as e:
+            print("untrack_widget", e)
+            pass
         self._active_widget = None
 
-    def remove_widget(self, shape_settings, widget):
-        for widget in self._widgets:
-            for item, value in widget.items():
-                if value == item:
+    def remove_widget(self, widget):
+        for index, wid in enumerate(self._widgets):
+            for value in wid.values():
+                if value == widget:
                     self._parent.remove_widget(widget)
-                    self._widget.remove(widget)
+                    del self._widgets[index]
         return True
+
 
 class RobotCanvas(FloatLayout):
     """
@@ -123,16 +167,13 @@ class RobotCanvas(FloatLayout):
         self._bunny_widgets = {}
         self.pos = (0 ,0)
         self.add_bunny_widget(bunny_uid="bunny_1")
-        time.sleep(5)
         Clock.schedule_interval(partial(self.update_bunny_rotation, 
                                         "bunny_1", 
                                          45), 25)
-        Clock.schedule_interval(self.next_frame, 1)
-        
         self.add_grid = True
         self.gridline_widget = self.add_gridlines() if self.add_grid else None 
         self.canvas_manager = CanvasManager(self)
-    
+        ##
     def _update_pos(self, instance, pos):
         self.pos = pos
         self._minimum_coord = self.pos
@@ -142,12 +183,6 @@ class RobotCanvas(FloatLayout):
 
     def _update_size(self, instance, size):
         self.size = size
-
-
-    def next_frame(self, *args):
-        print("time elapsed", end="")
-        print(args)
-
 
     ## Gridlines methods
     def add_gridlines(self):
@@ -224,6 +259,10 @@ class RobotCanvas(FloatLayout):
 
             elif shape_properties["fill_color"][-1] == 0.0 and shape_properties["type"] == "Obstacle":
                 InformationPopup(_type="e", _message="Obstacle has no fill_color!!").open()
+                return False
+
+            elif shape_properties["shape"] == "Polygon" and shape_properties["segments"] == 0:
+                InformationPopup(_type="e", _message="Number of segments unspecified for Polygon").open()
                 return False
 
             widget_ref = self.canvas_manager.add_widget(shape_settings, shape_properties)

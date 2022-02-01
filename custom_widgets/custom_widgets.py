@@ -264,10 +264,15 @@ class DragAndResizeRect(DragBehavior, Widget):
         self.constrain_to_parent_window = True
         self.shape_settings = None
         self.mode = "Fill"
+        Window.bind(on_motion=self.on_window_motion)
         self.lock_size = False
         self.lock_pos = False
         self._fixed = False
+        self._touch = None
+        self.canvas_manager = None
 
+    def __del__(self):
+        Window.unbind(on_motion=self.on_window_motion)
 
     def update_property(self, property, value):
         setattr(self, property, value)
@@ -283,7 +288,6 @@ class DragAndResizeRect(DragBehavior, Widget):
         self.border_color = value
 
     def set_lock_size(self, instance, value):
-        print("locking size!!")
         if value:
             self.size_hint_x = self.size[0] / self.parent.width
             self.size_hint_y = self.size[1] / self.parent.height
@@ -323,6 +327,27 @@ class DragAndResizeRect(DragBehavior, Widget):
                                       self.height - 2 * self._border_width]
             else:
                 self._border_coord = [0, 0, 0, 0]
+
+    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+        if self._touch is None:
+            return
+        elif ("delete" or "backspace" in keycode) and self._fixed:
+            diff = self._border_width * 2
+            xx, yy = self.to_widget(*self._touch.pos, relative=True)
+            if ((xx < diff or 
+                abs(self.width - xx) < diff or 
+                yy < diff or 
+                abs(self.height - yy) < diff) and 
+                self.mode == "Border") or ((0 < abs(xx) < self.width or 0 < abs(yy) < self.height) and
+                self.mode == "Fill"):
+                self.canvas_manager.remove_widget(self)
+        return True
+
+    def on_window_motion(self, *args):
+        for arg in args:
+            if type(arg).__name__ == "MouseMotionEvent":
+                self._touch = arg
+
 
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
@@ -386,7 +411,6 @@ class DragAndResizeRect(DragBehavior, Widget):
             return super(DragAndResizeRect, self).on_touch_move(touch)
         if 'size_node' in touch.ud.keys():
             xx, yy = self.to_widget(*touch.pos, relative=True)
-            print(self.drag_timeout, self.pos_hint)
             if "edit_mode" not in touch.ud.keys():
                 return super(DragAndResizeRect, self).on_touch_move(touch)
             if self.lock_size:
@@ -394,6 +418,7 @@ class DragAndResizeRect(DragBehavior, Widget):
 
             self.pos_hint = {}
             self.pos = (self.x, self.y)
+            self.size_hint = (None, None)
             if touch.ud["edit_mode"] == 'top':
                 if yy > 0:
                     if self.size_hint_y is None:
@@ -502,6 +527,7 @@ class DragAndResizeRect(DragBehavior, Widget):
         Window.set_system_cursor('arrow')
         self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
                          "y": (self.y - self.parent.y) / self.parent.height}
+        self.size_hint = (self.width/self.parent.width, self.height/self.parent.height)
         return super(DragAndResizeRect, self).on_touch_up(touch)
 
 
@@ -519,10 +545,32 @@ class DragAndResizePolygon(DragBehavior, Widget):
         self.segments = kwargs.get("segments", 100)
         self.size_hint = (None, None)
         self.mode = "Fill"
+        Window.bind(on_motion=self.on_window_motion)
+        self._touch = None
         self.lock_size = False
         self.lock_pos = False
         self._fixed = False
+        self.canvas_manager = None
+        Clock.schedule_once(partial(self.on_pos, self, self.pos), 0.1)
+    
 
+    def __del__(self):
+        Window.unbind(on_motion=self.on_window_motion)
+    
+    def on_window_motion(self, *args):
+        for arg in args:
+            if type(arg).__name__ == "MouseMotionEvent":
+                self._touch = arg
+
+    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+        if self._touch is None:
+            return True
+        elif ("delete" or "backspace" in keycode) and self._fixed:
+            is_within_shape, is_within_border = self.check_relative_touch_pos(self._touch, in_border=True)
+            print(is_within_shape, is_within_border, self.mode, self._touch.pos)
+            if (is_within_border and self.mode == "Border") or (is_within_shape and self.mode == "Fill"):
+                self.canvas_manager.remove_widget(self)
+        return True
     def set_lock_pos(self, instance, value):
         if value:
             pos_hint_x = (self.x - self.parent.x) / self.parent.width
@@ -536,15 +584,20 @@ class DragAndResizePolygon(DragBehavior, Widget):
             self.pos = (self.x, self.y) 
         
         self.lock_pos = value        
-        print("lock pos")
 
     def set_lock_size(self, instance, value):
-        print("locking size!!")
         if value:
             self.size_hint_x = self.size[0] / self.parent.width
             self.size_hint_y = self.size[1] / self.parent.height
         
         self.lock_size = value   
+
+    def set_segments(self, instance, value):
+        if value != '' and value != '0':
+            if int(float(value)) <= 3:
+                return
+            self.segments = int(float(value))
+            self.draw_border()
 
     def set_fill_color(self, instance, value):
         if self.mode != "Border":
@@ -557,7 +610,7 @@ class DragAndResizePolygon(DragBehavior, Widget):
     def update_property(self, property, value):
         setattr(self, property, value)
 
-    def on_pos(self, instance, value):
+    def on_pos(self, instance, value, *args):
         self.pos = value
         self.draw_border()
 
@@ -569,7 +622,8 @@ class DragAndResizePolygon(DragBehavior, Widget):
     def draw_border(self):
         points = []
         angle_step = (pi * 2) / float(self.segments)
-        for i in range(self.segments):
+        segments = int(self.segments)
+        for i in range(segments) :
             x = self.x + (1 + cos((angle_step * i) + pi/2)) * (self.width/2)
             y = self.y + (1 + sin((angle_step * i) + pi/2)) * (self.height/2)
             points.extend([x, y])
@@ -634,7 +688,8 @@ class DragAndResizePolygon(DragBehavior, Widget):
                 except ZeroDivisionError:
                     coord = coord + (pi/2, )
                 first_quadrant_coords.append(coord)    
-
+        
+        return_val = [False, False]
         # sort ascending angle
         sorted_first_quadrant_coords = sorted(first_quadrant_coords, key=lambda x:x[-1])
         for index, coord in enumerate(sorted_first_quadrant_coords):
@@ -651,9 +706,10 @@ class DragAndResizePolygon(DragBehavior, Widget):
 
                 if r_touch <= (r + self.border_width*2 ):
                     return_val[0] = True
-                    if in_border and abs(r_touch - r) <= (self.border_width*2):
+                    if in_border and abs(r_touch - r) <= (self.border_width*3):
                         return_val[1] = True
-                return return_val        
+                return return_val 
+        return return_val
 
     def touch_relative_angle(self, touch):
         (x, y) = self.to_widget(*touch.pos, relative=True)
@@ -678,6 +734,7 @@ class DragAndResizePolygon(DragBehavior, Widget):
         
         self.pos_hint = {}
         self.pos = (self.x, self.y)
+        self.size_hint = (None, None)
         is_within_shape, is_within_border = self.check_relative_touch_pos(touch, in_border=True)
 
         if touch.button == "left":
@@ -772,63 +829,78 @@ class DragAndResizePolygon(DragBehavior, Widget):
             self.drag_timeout = 10000000
         self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
                          "y": (self.y - self.parent.y) / self.parent.height}
+        self.size_hint = (self.width/self.parent.width, self.height/self.parent.height)
 
         return super(DragAndResizePolygon, self).on_touch_up(touch)
 
 
 class DragAndResizeTriangle(DragBehavior, Widget):
-    _fill_color = ListProperty([1, 0, 1, 0])
+    fill_color = ListProperty([1, 0, 1, 0])
     _triangle_points = ListProperty([])
-    _border_color = ListProperty([0, 0, 1, 1])
+    border_color = ListProperty([0, 0, 1, 1])
     _border_width = NumericProperty(2)
     _border_points = ListProperty([])
     _r_tol = NumericProperty(25)
     point_size = NumericProperty(5)
 
-
     def __init__(self, **kwargs):
         super(DragAndResizeTriangle, self).__init__(**kwargs)
         self.constrain_to_parent_window = True
         self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
-        self._keyboard.bind(on_key_down=self._on_keyboard_down)
-        self._keyboard.bind(on_key_up=self._on_keyboard_up)
-
-        self._shift_lock = False
         self._drag_active = False
         self._triangle_points_rel = [] # store relative points of triangle points
         self._index_num = None
-        self.mode = "Border"
         self.shape_settings = None
+        self.mode = "Fill"
+        self.lock_size = False
+        self.lock_pos = False
+        self._fixed = False
 
-    def _keyboard_closed(self):
-        self._keyboard.unbind(on_key_down=self._on_keyboard_down)
-        self._keyboard.unbind(on_key_up=self._on_keyboard_up)
-        self._keyboard = None
+    def set_lock_pos(self, instance, value):
+        if value:
+            pos_hint_x = (self.x - self.parent.x) / self.parent.width
+            pos_hint_y = (self.y - self.parent.y) / self.parent.height
+            print(pos_hint_x, pos_hint_y)
+            self.pos_hint = {"x": pos_hint_x, "y": pos_hint_y}
+            self.drag_timeout = 0
+        else:
+            self.drag_timeout = 1000000
+            self.pos_hint = {}
+            self.pos = (self.x, self.y) 
 
-    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-        if "shift" or "rshift" in keycode:
-            self._shift_lock = True
-        return True
+    def set_lock_size(self, instance, value):
+        if value:
+            self.size_hint_x = self.size[0] / self.parent.width
+            self.size_hint_y = self.size[1] / self.parent.height
+        
+        self.lock_size = value   
 
-    def _on_keyboard_up(self, *args ):
-        for arg in args:
-            if "shift" or "rshift" in arg:
-                self._shift_lock = False
-        return True
+    def set_fill_color(self, instance, value):
+        if self.mode != "Border":
+            self.fill_color = value
+
+    def set_border_color(self, instance, value):
+        self.border_color = value
+
+
+    def update_property(self, property, value):
+        setattr(self, property, value)
+
+
+
 
     def on_pos(self, instance, value):
+        print("pos adjusted!!")
         self.pos = value
         self.draw_triangle()
 
     def on_size(self, instance, value):
+        print("size adjusted!!")
         self.size = value
         self.draw_triangle()
 
-    def draw_triangle(self, width=None, height=None):
-        self.size_hint = (None, None)
-        self.width = width if width is not None else self.width
-        self.height = height if height is not None else self.height
-
+    def draw_triangle(self):
+        print("triangle being redrawn!!")
         if self._triangle_points == []:
             self._triangle_points = [self.x, self.y, 
                                     self.x+self.width/2, self.y+self.height, 
@@ -843,13 +915,14 @@ class DragAndResizeTriangle(DragBehavior, Widget):
                     self._triangle_points[index] = self.x + self._triangle_points_rel[index]
                 else:
                     self._triangle_points[index] = self.y + self._triangle_points_rel[index]
-
             # force update
             self._triangle_points = self._triangle_points
 
         border_points = self._triangle_points + self._triangle_points[0:2]
         self._border_points = border_points
     
+
+
 
     def check_touch_pos(self, touch, check_is_within=False):
         """
@@ -898,15 +971,25 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         return rel
     
     def on_touch_down(self, touch):
-        if not self.collide_point(*touch.pos):
+        if not self.collide_point(*touch.pos) or touch.button != "left":
             return super().on_touch_up(touch)
+        if self._fixed:
+            return super(DragAndResizeTriangle, self).on_touch_up(touch)
+
         else:
+            self.pos_hint = {}
+            self.pos = (self.x, self.y)
+            self.size_hint = (None, None)
             if self.mode == "Fill":
                 [corner_touched, _, is_within_tri] = self.check_touch_pos(touch, check_is_within=True)
                 if corner_touched is None:
                     self._index_num = None
                     self._drag_active = True
-                    self.drag_timeout = 1000000
+                    if not self.lock_pos:
+                        self.drag_timeout = 1000000
+                    else:
+                        self.drag_timeout = 0
+                    
                     if is_within_tri:
                         return super().on_touch_down(touch)
                     else:
@@ -923,6 +1006,8 @@ class DragAndResizeTriangle(DragBehavior, Widget):
                 self.drag_timeout = 0
                 [corner_touched, _, is_within_tri] = self.check_touch_pos(touch)
                 if corner_touched is not None:
+                    if self.lock_pos and corner_touched == 0:
+                        corner_touched = None
                     Window.set_system_cursor("crosshair")
                     self._index_num = corner_touched
                 else:
@@ -935,6 +1020,11 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         return super().on_touch_down(touch)
 
     def on_touch_move(self, touch):
+        if self._fixed:
+            return super(DragAndResizeTriangle, self).on_touch_up(touch)
+
+        if self.lock_size:
+            return super(DragAndResizeTriangle, self).on_touch_move(touch)
 
         if "size_node" in touch.ud.keys():
             if "point_index" in touch.ud.keys():
@@ -997,8 +1087,16 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         return super(DragAndResizeTriangle, self).on_touch_move(touch)
 
     def on_touch_up(self, touch):
+        if self._fixed:
+            return super(DragAndResizeTriangle, self).on_touch_up(touch)
+        if self.lock_pos:
+            self.drag_timeout = 0
         Window.set_system_cursor('arrow')
         self._drag_active = False
+        self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
+                         "y": (self.y - self.parent.y) / self.parent.height}
+        self.size_hint = (self.width/self.parent.width, self.height/self.parent.height)
+        
         return super(DragAndResizeTriangle, self).on_touch_up(touch)
 
 
@@ -1390,6 +1488,8 @@ class ShapeSettings(GridLayout):
 
     def remove_segments_section(self, *args):
         # called when shape is anything except Polygon
+        if self._widget_placed:
+            return
         if self._segments_label is not None and self._segments_text_input is not None:
             self.remove_widget(self._segments_text_input)
             self.remove_widget(self._segments_label)
@@ -1432,7 +1532,6 @@ class ShapeSettings(GridLayout):
 
     def place_shape(self, instance):
         widget_placed = self.shape_canvas.add_shape(self, self.shape_properties)
-        print(widget_placed)
         if widget_placed:
             self._widget_placed = True
             self._place_button.disabled = True
