@@ -168,6 +168,8 @@ class Crazyradio:
             self.set_ard_bytes(32)
             self.set_ack_enable(True)
 
+
+
     def close(self):
         if (pyusb1 is False):
             if self.handle:

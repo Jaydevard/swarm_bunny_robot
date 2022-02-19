@@ -1,5 +1,3 @@
-from this import d
-from typing import List
 from kivy.core.text import markup
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
@@ -10,15 +8,21 @@ from kivy.uix.widget import Widget
 from kivy.uix.dropdown import DropDown
 from kivy.uix.textinput import TextInput
 from functools import partial
-from usb import core
+from communication.radio import Radio
 from utils import InformationPopup, Scale
+from kivy.uix.recycleview import RecycleView
+from kivy.uix.recycleview.views import RecycleDataViewBehavior
+from kivy.uix.label import Label
+from kivy.properties import BooleanProperty
+from kivy.uix.recycleboxlayout import RecycleBoxLayout
+from kivy.uix.behaviors import FocusBehavior
+from kivy.uix.recycleview.layout import LayoutSelectionBehavior
 from pathlib import Path
 from kivy.uix.behaviors import DragBehavior, button
 from kivy.animation import Animation
 from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProperty, \
     ReferenceListProperty, ListProperty, NumericProperty, BooleanProperty, DictProperty
 from kivy.uix.actionbar import ActionBar, ActionItem
-from core.constants import Constants as Cons
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Color, InstructionGroup, Line, Point, Rectangle
@@ -29,6 +33,9 @@ from math import pi, cos, sin
 import math
 import numpy as np
 import os
+from core.exceptions import *
+
+
 
 Builder.load_file(str(Path(os.getcwd()) / "custom_widgets" / "custom_widgets.kv"))
 
@@ -58,8 +65,6 @@ class StatusBarWidget(GridLayout):
         self._wifi_image.source = str(self._IMAGE_PATH / "wifi_not_connected.png")
         self._battery_image.source = str(self._IMAGE_PATH / "battery_80.png")
         self._speed_image.source = str(self._IMAGE_PATH / "speed.png")
-
-
 
     def on_pos(self, instance, value):
         instance.pos = self.pos
@@ -106,31 +111,54 @@ class StatusBarWidget(GridLayout):
 
 class BunnyWidget(Image, ButtonBehavior):
     _state = ObjectProperty()
-    _angle = NumericProperty(0)
+    angle = NumericProperty(0)
+    battery_level = BoundedNumericProperty(0, min=0, max=100)
+    addr = StringProperty("")
 
     def __init__(self, uid, **kwargs):
         super(BunnyWidget, self).__init__(**kwargs)
         self._IMAGE_PATH = "atlas://custom_widgets/images/bunny_widget/bunny_widget"
         self._id = uid
+        self.addr = uid
+        self.Cons = None
+        self._radio = None
+        self.scale = 5.0   # 5m grid
+        self.canvas_manager = None
+        self.size_hint = (0.2/5, 0.2/5)
+
+    def on_size(self, instance, value):
+        self.size_hint = (0.2/5, 0.2/5)
+
+    def update_property(self, property, value):
+        setattr(self, property, value)
+
+
+    def update_scale(self, value):
+        self.size_hint = (self.Cons.BUNNY_DIAMETER/ float(value), self.Cons.BUNNY_DIAMETER / float(value))
+        self.pos_hint = self.pos_hint
+    
+    # battery_level callback
+    def on_battery_level(self, instance, value):
+        pass
 
     # state callback
     def on__state(self, instance, value):
         self.source = self._IMAGE_PATH + f"/bunny_widget_{value}"
 
     # rotation_angle_callback
-    def on__angle(self, instance, value):
+    def on_angle(self, instance, value):
         if value == 360:
             instance.angle = 0
 
     def __setitem__(self, key, value):
         if key == "state":
-            if value not in Cons.BUNNY_STATES:
+            if value not in self.Cons.BUNNY_STATES:
                 print(f"incorrect state {value}")
                 raise ValueError
             else:
                 self._state = value
         elif key == "angle":
-            anim = Animation(_angle=value, duration=2)
+            anim = Animation(angle=value, duration=2)
             anim.start(self)
     
     # bunny_x - bunny_y = diff in pos(reference is center of each)
@@ -138,9 +166,100 @@ class BunnyWidget(Image, ButtonBehavior):
         if type(other) == type(self):
             return (self.center[0] - other.center[0], self.center[1] - other.center[1])
 
+    # send command to move
+    
+    def move(self, vel: list or tuple,mode="sim", *args):
+        """
+        Moves the bunny widget on the canvas based on 
+        the velocity, mode and dt:
+        Call this function using Kivy.clock.schedule_(once|interval)
+        if mode == "sim": updates the pos_hint
+        elif mode == "real": sends the velocity cmd and updates its position
+        """
+        
+        # hard coding the scale to be 5 m
+        if self._radio is None and mode == "real":
+            raise Exception("radio not provided!!")
+
+        # send command 5 times
+        count = 5
+        num_errors = 0
+        state = None
+        battery_level = None
+        actual_position = None
+
+        if mode == "real":
+            for i in range(count): 
+                state, battery_level, actual_position = self._radio.send_vel_cmd(addr=self.addr, velocity=vel)
+                if state is None or battery_level is None or actual_position is None:
+                    num_errors += 1
+
+            if num_errors == count:
+                raise NoAckError
+
+            if actual_position is not None:
+                ## Assuming that the zero position is represented by the (0,0) position of the robot
+                self.pos_hint = {"center_x":actual_position[0] / self.scale, "center_y":actual_position[1] / self.scale}
+            
+            if battery_level is not None:
+                self.battery_level = (100 / 16) *battery_level
+            
+            if state is not None:
+                # state bit  0:3 :
+                #             init_state = 0x0,
+                #             magcalibration_state = 0x1,
+                #             idle_state = 0x2,
+                #             run_state = 0x3,
+                #             gotocharge_state = 0x4,
+                #             charging_state = 0x5,
+                #             sleep_state = 0x6,
+                #
+                #             error_state = 0xE,
+                #             debug_state = 0xF
+
+                # state bit  4:7 : battery level in 16 levels
+                if state in (0x0, 0x1):
+                    raise BunnyNotReadyError(state)
+
+                elif state in (0x4, 0x5):
+                    self.state = "charge"
+                
+                elif state in (0x6, 0x2):
+                    self.state = "idle"
+                
+                else:
+                    self.state = "formation"
+
+        elif mode == "sim":
+            diff_x = vel[0] * args[0]
+            diff_y = vel[1] * args[0]
+            self.pos_hint = {}
+            self.pos =  (self.x + diff_x / self.scale, self.y + diff_y / self.scale)
+            self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
+                             "y": (self.y - self.parent.y) / self.parent.height}
+
+    
+    def stop(self, after: float or int =0):
+        try:
+            if after == 0:
+                self._radio:Radio.send_vel_cmd(self.addr, [0,0,0])
+            else:
+                Clock.schedule_once(partial(self._radio.send_vel_cmd, self.addr, (0,0,0)), after)
+        except Exception as e:
+            raise e
+
+
     @property
     def id(self):
         return self._id
+
+    @property
+    def state(self):
+        return self._state
+
+    @property
+    def radio(self):
+        return self._radio
 
 
 class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
@@ -149,12 +268,23 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
     _search_button = ObjectProperty()
     _connect_button = ObjectProperty()
 
+    _radio_state = BooleanProperty(False)
+
     def __init__(self, **kw):
         super().__init__(**kw)
         self._IMAGE_PATH = Path("custom_widgets/images/radio_dongle_widget")
         self._SPINNER_INITIAL_TEXT = "[b][i]Select radio dongle[/i][/b]"
-        Clock.schedule_once(self.initialize_widgets, 1)
-        self._active_radio_dongle = None
+        Clock.schedule_once(self._initialize_widgets, 1)
+        self._connections_cls = None
+        self._radio_handle = None
+        self._selected_radio = None
+
+    def on__radio_state(self, instance, value):
+        """
+        Use this function to notify other widgets down 
+        the line when radio connection status changes
+        """
+        pass
 
     def on_pos(self, instance, pos):
         self.pos = pos
@@ -162,76 +292,54 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
     def on_size(self, instance, size):
         self.size = size
 
-    def initialize_widgets(self, *args):
+    def update_property(self, property, value):
+        setattr(self, property, value)
+
+
+    def _initialize_widgets(self, *args):
         self._wifi_image.source = str(self._IMAGE_PATH / "wifi_not_connected.png")
         self._spinner.text = self._SPINNER_INITIAL_TEXT
-        self._connect_button.bind(on_release=self.connect_to_radio)
-        self._search_button.bind(on_release=self.search_for_radio_dongles)
         self._spinner.bind(text=self.update_on_spinner_selection)
 
-    def update_on_spinner_selection(self, *args):
-        if self._spinner.text == self._SPINNER_INITIAL_TEXT or self._active_radio_dongle is None:
-            return
-        elif self._active_radio_dongle != self._spinner.text:
-            self._connect_button.text = "[b][i]Connect[i][/b]"
-            self._wifi_image.source = str(self._IMAGE_PATH / "wifi_not_connected.png")
-        elif self._active_radio_dongle == self._spinner.text:
-            self._connect_button.text = "[b][i]Disconnect[i][/b]"
-            self._wifi_image.source = str(self._IMAGE_PATH / "wifi_connected.png")
 
-    def search_for_radio_dongles(self, *args):
+    def set_state_to_connected(self, radio, radio_available: list):
+        self._wifi_image.source = str(self._IMAGE_PATH / "wifi_connected.png")
+        self._connect_button.text = "[b][i]Disonnect[i][/b]"
+        self._connect_button.disabled = False
+        self._spinner.values = radio_available
+        self._spinner.text = radio_available[0]
+        self._selected_radio = radio_available[0]
+        self._radio_handle = radio
+
+    def set_state_to_disconnected(self):
+        self._wifi_image.source = str(self._IMAGE_PATH / "wifi_not_connected.png")
+        InformationPopup("w", "Disconnected from Radio").open()
+        self._connect_button.text = "[b][i]Connect[i][/b]"
+        self._radio_handle.close() 
+        self._radio_handle = None
+        self._selected_radio = None
+
+    def set_state_to_searching(self):
         self._wifi_image.source = str(self._IMAGE_PATH / "searching_wheel.gif")
         self._search_button.text = "[b][i]Searching[/i][/b]"
         self._search_button.disabled = True
-        # call communication class here as a Clock schedule
-        Clock.schedule_once(partial(self.update_radio_dongles, ['radio_1', 'radio_2']), 3)
+        print("searching!!!")
 
-    def update_radio_dongles(self, radios: list, *largs):
-        """
-        Callback for radio dongles
-        ==========
-        This must be called by the communication class
-        :param radios: list of radios available
-        :param largs: handle extra arguments
-        :return: None
-        """
-        self._spinner.values = radios
-        self._search_button.disabled = False
-        self._search_button.text = "[b][i]Search[/i][/b]"
-        self._wifi_image.source = str(self._IMAGE_PATH / "wifi_not_connected.png")
-
-    def connect_to_radio(self, *args):
-        if self._spinner.text == self._SPINNER_INITIAL_TEXT:
-            InformationPopup(_type='e', _message="Select a radio dongle").open()
-
-        else:
-            self._spinner.disabled = True
-            self._connect_button.text = "[b][i]Connecting[i][/b]"
-            self._wifi_image.source = self._wifi_image.source = str(self._IMAGE_PATH / "wifi_connecting.gif")
-        # call communication function to start connection as a Clock schedule
-            Clock.schedule_once(partial(self.finalize_radio_connection, True), 3)
-
-    def finalize_radio_connection(self, connection_established: bool, *args):
-        """
-        Callback for radio connection
-        ==========
-        callback function when radio connection has been established or not
-        :param connection_established: True if connected, False if not connected
-        :param args: handle callback arguments from kivy clock
-        :return: None
-        """
-        if connection_established:
-            self._spinner.disabled = False
-            self._active_radio_dongle = self._spinner.text
+    def update_on_spinner_selection(self, *args):
+        if self._spinner.text == self._SPINNER_INITIAL_TEXT or self._selected_radio is None:
+            self._connect_button.text = "[b][i]Connect[i][/b]"
+            self._connect_button.disabled = True
+        
+        elif self._selected_radio != self._spinner.text:
+            self._connect_button.text = "[b][i]Connect[i][/b]"
+        
+        elif self._selected_radio == self._spinner.text:
             self._connect_button.text = "[b][i]Disconnect[i][/b]"
             self._wifi_image.source = str(self._IMAGE_PATH / "wifi_connected.png")
-        else:
-            InformationPopup(_type='e', _message="Connection to radio could not be established!!").open()
-            self._active_radio_dongle = None
 
+    
 
 class BunnyActionBar(ActionBar):
-
     # need to be completed
     connected_checkbox = ObjectProperty()
     charge_checkbox = ObjectProperty()
@@ -264,15 +372,20 @@ class DragAndResizeRect(DragBehavior, Widget):
         self.constrain_to_parent_window = True
         self.shape_settings = None
         self.mode = "Fill"
-        Window.bind(on_motion=self.on_window_motion)
         self.lock_size = False
         self.lock_pos = False
-        self._fixed = False
         self._touch = None
+        Window.bind(on_motion=self.on_window_motion)
+        self._fixed = False
         self.canvas_manager = None
 
     def __del__(self):
         Window.unbind(on_motion=self.on_window_motion)
+    
+    def on_window_motion(self, *args):
+        for arg in args:
+            if type(arg).__name__ == "MouseMotionEvent":
+                self._touch = arg
 
     def update_property(self, property, value):
         setattr(self, property, value)
@@ -306,7 +419,6 @@ class DragAndResizeRect(DragBehavior, Widget):
             self.pos_hint = {}
             self.pos = (self.x, self.y)
         self.lock_pos = value        
-        print("lock pos")
 
     def on_pos(self, item, pos):
         self.pos = pos
@@ -334,20 +446,14 @@ class DragAndResizeRect(DragBehavior, Widget):
         elif ("delete" or "backspace" in keycode) and self._fixed:
             diff = self._border_width * 2
             xx, yy = self.to_widget(*self._touch.pos, relative=True)
-            if ((xx < diff or 
-                abs(self.width - xx) < diff or 
-                yy < diff or 
-                abs(self.height - yy) < diff) and 
-                self.mode == "Border") or ((0 < abs(xx) < self.width or 0 < abs(yy) < self.height) and
+            if ((  0 < xx < diff or 
+                   abs(self.width - xx) < diff or 
+                    0 < yy < diff or 
+                   abs(self.height - yy) < diff) and 
+                self.mode == "Border") or (  (0 < xx < self.width and 0 < yy < self.height) and
                 self.mode == "Fill"):
                 self.canvas_manager.remove_widget(self)
         return True
-
-    def on_window_motion(self, *args):
-        for arg in args:
-            if type(arg).__name__ == "MouseMotionEvent":
-                self._touch = arg
-
 
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
@@ -567,10 +673,10 @@ class DragAndResizePolygon(DragBehavior, Widget):
             return True
         elif ("delete" or "backspace" in keycode) and self._fixed:
             is_within_shape, is_within_border = self.check_relative_touch_pos(self._touch, in_border=True)
-            print(is_within_shape, is_within_border, self.mode, self._touch.pos)
             if (is_within_border and self.mode == "Border") or (is_within_shape and self.mode == "Fill"):
                 self.canvas_manager.remove_widget(self)
         return True
+    
     def set_lock_pos(self, instance, value):
         if value:
             pos_hint_x = (self.x - self.parent.x) / self.parent.width
@@ -732,16 +838,16 @@ class DragAndResizePolygon(DragBehavior, Widget):
         if self._fixed:
             return super(DragAndResizePolygon, self).on_touch_up(touch)
         
-        self.pos_hint = {}
-        self.pos = (self.x, self.y)
-        self.size_hint = (None, None)
-        is_within_shape, is_within_border = self.check_relative_touch_pos(touch, in_border=True)
-
         if touch.button == "left":
             self._touch_region = "undef"
         else:
             return super(DragAndResizePolygon, self).on_touch_up(touch)
+
         self.drag_timeout = 0
+        self.pos_hint = {}
+        self.pos = (self.x, self.y)
+        self.size_hint = (None, None)
+        is_within_shape, is_within_border = self.check_relative_touch_pos(touch, in_border=True)
         
         if (is_within_shape or is_within_border) and self.mode != "Border" and not self.lock_pos:
             self.drag_timeout = 10000000
@@ -768,7 +874,6 @@ class DragAndResizePolygon(DragBehavior, Widget):
         if self._touch_region != "undef":
             touch.ud["size_node"] = self
             return True
-        
         return super(DragAndResizePolygon, self).on_touch_down(touch)
 
     def on_touch_move(self, touch):
@@ -885,8 +990,6 @@ class DragAndResizeTriangle(DragBehavior, Widget):
 
     def update_property(self, property, value):
         setattr(self, property, value)
-
-
 
 
     def on_pos(self, instance, value):
@@ -1096,14 +1199,14 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
                          "y": (self.y - self.parent.y) / self.parent.height}
         self.size_hint = (self.width/self.parent.width, self.height/self.parent.height)
-        
         return super(DragAndResizeTriangle, self).on_touch_up(touch)
 
 
 class GridWidget(Widget):
     grid_color = ListProperty( [0.7, 0.5, 0.3, 1])    #    [0.5, 0.2, 1, 1])
     grid_line_thickness = NumericProperty(1)
-    grid_scale = DictProperty({"1m": 100})            # 1m represented by 100 pixels     
+    SCALE_RATIO = 0.07
+    SCALE = ObjectProperty([1, "m"])
     MAX_GRIDLINES = 15
     include_points = BooleanProperty(True)
     point_size = NumericProperty(2)
@@ -1119,6 +1222,34 @@ class GridWidget(Widget):
         self.lines = InstructionGroup()
         self.draw_grid()
 
+
+    def update_scale(self, *args):
+        """
+        this function is bound to Constant.CANVAS_SCALE
+        """
+        if len(args) == 1:
+            self.scale = args[0]
+        elif len(args) == 2:
+            self.scale = args[1]
+
+    def force_max_length(self, length: str or float, unit:str, *args):
+        """
+        Changes the max length of the label
+        Recalculates the markings accordingly
+        length: str or float . maximum length
+        unit: "m" or "ft"
+        """
+        
+        per_line = round(float(length) * self.SCALE_RATIO, 2)
+        self.SCALE = [per_line, str(unit)]
+
+
+    def on_SCALE(self, instance, value):
+        """
+        Whenever the scale changes,
+         this function is called
+        """
+        self.update_grid()
 
     def on_pos(self, item, value):
         self.pos = value
@@ -1139,14 +1270,10 @@ class GridWidget(Widget):
 
     def draw_grid(self, *args):
         
-        min_pixel = self.grid_scale["1m"]
         # x axis
         # Adding 15 grid lines
-        line_wp_distance = self.width  //self.MAX_GRIDLINES
-        line_hp_distance = self.height //self.MAX_GRIDLINES
-        
 
-        for x_pos in range(0, int(self.width), line_wp_distance):
+        for x_pos in range(0, int(self.width), int(self.width*self.SCALE_RATIO)):
             if x_pos > self.height:
                 continue
             color = Color(*self.grid_color)
@@ -1155,7 +1282,7 @@ class GridWidget(Widget):
             self.lines.add(color)
             self.lines.add(line)
 
-        for y_pos in range(0, int(self.height), line_hp_distance):
+        for y_pos in range(0, int(self.height), int(self.height*self.SCALE_RATIO)):
             if y_pos > self.height:
                 continue
             color = Color(*self.grid_color)
@@ -1171,34 +1298,30 @@ class GridWidget(Widget):
         """
         Update the grid lines based on canvas 
         pos adjustment
-        SET GRIDLINES TO always show 15m i.e 15 lines on one axis
         1 line represents 1 m
         """
-        line_wp_distance = self.width //self.MAX_GRIDLINES
-        line_hp_distance = (self.height) // self.MAX_GRIDLINES
 
         for line_num, (color, line) in enumerate(self.vertical_lines):
-            if (line_num+1)*line_wp_distance > self.width:
+            if (line_num+1)*(self.width*self.SCALE_RATIO) > self.width:
                 self.lines.remove(color)
                 self.lines.remove(line)
                 self.vertical_lines.remove((color, line))
                 continue
-            line.points = ((line_num+1)*line_wp_distance + self.x, 
+            line.points = ((line_num+1)*(self.width*self.SCALE_RATIO) + self.x, 
                            self.y, 
-                           (line_num+1)*line_wp_distance + self.x,
+                           (line_num+1)*(self.width*self.SCALE_RATIO) + self.x,
                            self.y+self.height)
 
-
         for line_num, (color, line) in enumerate(self.horizontal_lines):
-            if (line_num+1)*line_hp_distance > self.height:
+            if (line_num+1)*(self.height*self.SCALE_RATIO) > self.height:
                 self.lines.remove(color)
                 self.lines.remove(line)
                 self.horizontal_lines.remove((color, line))
                 continue
             line.points = (self.x, 
-                           self.y+(line_num+1)*line_hp_distance, 
+                           self.y+(line_num+1)*(self.height*self.SCALE_RATIO), 
                            self.x+self.width,
-                           self.y+(line_num+1)*line_hp_distance)
+                           self.y+(line_num+1)*(self.height*self.SCALE_RATIO))
         self.points.clear()
         
         if self.include_points:
@@ -1211,19 +1334,22 @@ class GridWidget(Widget):
             self.points.add(self.points_color)
             self.points.add(Point(points=points, pointsize=self.point_size))
             self.canvas.add(self.points)
-
         self.update_scale_markings()
 
 
     def add_scale_markings(self):
+        """ 
+        use Scale Markings
+        
+        """
         for pos, (color_x, line_x) in enumerate(self.vertical_lines):
             points = line_x.points[2::]
-            label = Label(text=f"{(pos+1)} m")
+            label = Label(text=f"{round(self.SCALE[0] + (pos*float(self.SCALE[0])), 3)} {self.SCALE[1]}")
             label.size = (0, 0)
             label.pos = points
             self.add_widget(label)
             self.labels.append(label)
-    
+
     def update_scale_markings(self):
         if self.labels == []:
             return
@@ -1234,6 +1360,7 @@ class GridWidget(Widget):
                 self.labels.pop()
             for pos, label in enumerate(self.labels):
                 label.pos = self.vertical_lines[pos][1].points[2::]
+                label.text = f"{round(self.SCALE[0] + (pos*float(self.SCALE[0])), 3)} {self.SCALE[1]}"
 
 
 class ColorDropDown(DropDown):
@@ -1292,7 +1419,7 @@ class ShapeSettings(GridLayout):
         super().__init__(**kwargs)
         self._fill_color_dropdown = ColorDropDown()
         self._border_color_dropdown = ColorDropDown()
-        Clock.schedule_once(self.initialize, 0.1)
+        Clock.schedule_once(self.initialize, 1)
         self.shape_properties = {}
         self.shape_canvas = None
         self._widget_placed = False
@@ -1334,7 +1461,6 @@ class ShapeSettings(GridLayout):
         self._lock_size_checkbox.bind(active=self.set_lock_size)
         self._place_button.bind(on_release=self.place_shape)
         self._new_button.bind(on_release=self.new_shape)
-        self._remove_button.bind(on_release=self.remove_shape)
 
         self._shape_fill_color = [0, 0, 0, 0]
         self._shape_border_color = [0, 0, 0, 0]
@@ -1523,7 +1649,7 @@ class ShapeSettings(GridLayout):
     def new_shape(self, instance):
         if self._active_widget is None:
             return
-        if self.shape_canvas.save_widget(self, self._active_widget):
+        if self.shape_canvas.canvas_manager.untrack_widget(self, self._active_widget):
             self._place_button.disabled = False
             self._widget_placed = False
             self._active_widget = None
@@ -1531,42 +1657,88 @@ class ShapeSettings(GridLayout):
     #======== Callbacks to Robot Canvas =======#
 
     def place_shape(self, instance):
-        widget_placed = self.shape_canvas.add_shape(self, self.shape_properties)
+        widget_placed = self.shape_canvas.canvas_manager.add_shape(self, self.shape_properties)
         if widget_placed:
             self._widget_placed = True
             self._place_button.disabled = True
             self._active_widget = widget_placed
 
-    def remove_shape(self, instance):
-        if not self._place_button.disabled:
-            InformationPopup(_type="e", _message="Shape has not been placed!").open()
     #===============================================#
     #===============================================#
 
+class ScaleSettings(GridLayout):
+    
+    text_input_wid = ObjectProperty()
+    max_length_label = ObjectProperty()
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.canvas_manager = None
+        Clock.schedule_once(self.initialize, 1)
+
+    def on_pos(self, instance, value):
+        self.pos = value
+
+    def on_size(self, instance, value):
+        self.size = value
+
+    def initialize(self, *args):
+        self.text_input_wid.bind(text=self.canvas_manager.update_canvas_scale)
+        self.text_input_wid.disabled = True
+
+    def update_property(self, property, value):
+        setattr(self, property, value)
+        
 
 
+class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior,
+                                 RecycleBoxLayout):
+    pass
 
+
+class SelectableLabel(RecycleDataViewBehavior, Label):
+    index = None
+    selected = BooleanProperty(False)
+    selectable = BooleanProperty(True)
+
+    def refresh_view_attrs(self, rv, index, data):
+        self.index = index
+        return super().refresh_view_attrs(rv, index, data)
+    
+    def on_touch_down(self, touch):
+        
+        if super(SelectableLabel, self).on_touch_down(touch):
+            return True
+        if self.collide_point(*touch.pos) and self.selectable:
+            return self.parent.select_with_touch(self.index, touch)
+    
+    def apply_selection(self, rv, index, is_selected):
+        self.selected = is_selected
+        if is_selected:
+            print(rv.data[index])
+
+
+class AnimationSelection(RecycleView):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.data = [{'text': str(x)} for x in range(20)]
+
+
+class ChoreoBoard(BoxLayout):
+    
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        pass
+    
+    def on_pos(self, instance, value):
+        self.pos = value
+
+    def on_size(self, instance, value):
+        self.size = value
 
     
+    def initialize(self, *args):
+        pass
 
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-    
-
-
-
+        
 

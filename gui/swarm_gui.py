@@ -1,5 +1,5 @@
 import random
-from keyboard import on_press
+import struct
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -12,14 +12,12 @@ from kivy.graphics.instructions import InstructionGroup
 from kivy.uix.button import Button
 from kivy.lang import Builder
 from utils import InformationPopup
-from communication.network import WirelessNetwork
 from custom_widgets.custom_widgets import *
 import math
 from core.constants import Constants as Cons
 from pathlib import Path
 from functools import partial
-from kivy.base import EventDispatcher
-
+from communication.radio import Radio
 
 class SwarmGUI(App):
     """
@@ -27,6 +25,14 @@ class SwarmGUI(App):
     This is where we instantiate the GUI
     Main controls
     """
+    constants = ObjectProperty()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    
+    def build(self):
+        self.constants = Cons()
+
 
 class CanvasManager(Widget):
     """
@@ -37,16 +43,52 @@ class CanvasManager(Widget):
 
     def __init__(self, widget, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._parent = widget
+        self._parent:SwarmGUI = widget
         self._canvas = widget.canvas
-        self._widgets = []
+        self._shapes = []
+        self._bunny_widgets = {}
         self._active_widget = None
-        self._pos = 0
         self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
         Window.bind(on_motion=self.on_window_motion)
+        self._canvas_scale = None
+        Clock.schedule_once(self.check_bunny_movement, 6)
+
+    def check_bunny_movement(self, *args):
+        self.add_bunny_widget(bunny_uid="LGN01")
+        self.bunny_widgets["LGN01"].pos_hint = {"center_x": 0.5, "center_y": 0.5}
+        Clock.schedule_interval(partial(self.bunny_widgets["LGN01"].move, (5,5,5), "sim"), 5)
+
+    def update_canvas_scale(self, instance, value):
+        """
+        Feature not completely working for now!!
+        """
+        if value == '' or float(value) == 0.0:
+            return True
+        
+    def notify_property_change(self, func, *args):
+        for wid in self._shapes:
+            try:
+                getattr(wid["widget"], func)(*args)
+            except Exception as e:
+                print( wid, e)
+                pass
+
+        for bunny_uid, bunny in self._bunny_widgets.items():
+            try:
+                getattr(bunny, func)(*args)
+            except Exception as e:
+                print( bunny_uid, e)
+                pass
 
     def on_window_motion(self, *args):
+
+        """"
+        this function helps to keep track of
+        whether mouse is on the canvas.
+        in that way, the keyboard is requested 
+        to perform delete operations
+        """
         if self._keyboard is not None:
             return
         for arg in args:
@@ -65,9 +107,8 @@ class CanvasManager(Widget):
             self._keyboard = None
             self._keyboard_released = True
 
-
     def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-        for wid in self._widgets:
+        for wid in self._shapes:
             try:
                 wid["widget"]._on_keyboard_down(keyboard, keycode, text, modifiers)
             except Exception as e:
@@ -75,177 +116,6 @@ class CanvasManager(Widget):
                 pass
         return True
 
-    def add_widget(self, shape_settings, shape_properties):
-        if self._active_widget is not None:
-            return
-        widget_properties = {}
-        widget = None
-        mode = "Fill"
-        if shape_properties["type"] == "Border":
-            shape_properties["fill_color"] = [0, 0, 0, 0]
-            print("Border detected!!")
-            mode = "Border"
-
-        if shape_properties["shape"] == "Rectangle":
-            widget = DragAndResizeRect()
-        elif shape_properties["shape"] == "Ellipse":
-            widget = DragAndResizePolygon()
-        elif shape_properties["shape"] == "Polygon":
-            widget = DragAndResizePolygon()
-            widget.update_property("segments", shape_properties["segments"])
-            shape_settings._segments_text_input.bind(text=widget.set_segments)            
-
-        # elif shape_properties["shape"] == "Triangle":
-        #     widget = DragAndResizeTriangle()
-
-        widget.update_property("fill_color", shape_properties["fill_color"])
-        widget.update_property("border_color", shape_properties["border_color"])
-        widget.update_property("mode", mode )
-        widget.update_property("canvas_manager", self)
-        shape_settings.bind(_shape_fill_color=widget.set_fill_color)
-        shape_settings.bind(_shape_border_color=widget.set_border_color)
-        shape_settings._lock_size_checkbox.bind(active=widget.set_lock_size)
-        shape_settings._lock_position_checkbox.bind(active=widget.set_lock_pos)
-            
-        widget_properties["widget"] = widget
-        widget_properties["type"] = shape_properties["type"]
-        widget_properties["pos"] = self._parent.center
-        print("Shape added!!")
-        self._parent.add_widget(widget)
-        widget.pos = widget.parent.pos
-        self._active_widget = widget
-        self._widgets.append(widget_properties)
-        return widget
-
-
-    def untrack_widget(self, shape_settings, widget):
-        widget.update_property("_fixed", True)
-        shape_settings.unbind(_shape_fill_color=widget.set_fill_color)
-        shape_settings.unbind(_shape_border_color=widget.set_border_color)
-        shape_settings._lock_size_checkbox.unbind(active=widget.set_lock_size)
-        shape_settings._lock_position_checkbox.unbind(active=widget.set_lock_pos)
-        try:
-            shape_settings._segments_text_input.unbind(text=widget.set_segments)
-        except Exception as e:
-            print("untrack_widget", e)
-            pass
-        self._active_widget = None
-
-    def remove_widget(self, widget):
-        for index, wid in enumerate(self._widgets):
-            for value in wid.values():
-                if value == widget:
-                    self._parent.remove_widget(widget)
-                    del self._widgets[index]
-        return True
-
-
-class RobotCanvas(FloatLayout):
-    """
-    Class RobotCanvas
-    Used to initalize and display the robots
-    """  
-    background_color = ListProperty([1, 1, 0, 0])
-
-    # Default values for sim
-    current_point = None
-    last_point = None
-    shape_points = []
-    shape_lines = []
-    can_draw_more = True
-    custom_mode_on = False
-    triangle_custom_mode_on = False
-
-    triangle = ((500, 150), (800, 150), (650, 450))
-    square = ((250, 150), (550, 150), (550, 450), (250, 450))
-
-    def __init__(self, **kwargs):
-        super(RobotCanvas, self).__init__(**kwargs)
-        self.bind(pos=self._update_pos, size=self._update_size)
-        self._minimum_coord = self.pos
-        self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
-        self._bunny_widgets = {}
-        self.pos = (0 ,0)
-        self.add_bunny_widget(bunny_uid="bunny_1")
-        Clock.schedule_interval(partial(self.update_bunny_rotation, 
-                                        "bunny_1", 
-                                         45), 25)
-        self.add_grid = True
-        self.gridline_widget = self.add_gridlines() if self.add_grid else None 
-        self.canvas_manager = CanvasManager(self)
-        ##
-    def _update_pos(self, instance, pos):
-        self.pos = pos
-        self._minimum_coord = self.pos
-        self._maximum_coord = (self.pos[0]+self.width, self.pos[1]+self.height)
-        if self.gridline_widget is not None:
-            self.gridline_widget.update_grid()
-
-    def _update_size(self, instance, size):
-        self.size = size
-
-    ## Gridlines methods
-    def add_gridlines(self):
-        grid_line_widget = GridWidget()
-        grid_line_widget.pos_hint = {"x":0, "y":0}
-        grid_line_widget.size_hint = (1, 1)
-        self.add_widget(grid_line_widget)
-        return grid_line_widget
-
-    def remove_gridlines(self):
-        self.remove_widget(self.gridline_widget)
-
-    #===================== Bunny methods ==========================#
-    
-    def add_bunny_widget(self, bunny_uid, **kwargs):
-        """
-        Add a Bunny Widget 
-        (Optional)
-        :param - "size_hint" : size_hint for widget, 
-                               default (0.05, 0.05)
-        "param - "pos_hint"  : pos_hint for widget, default  
-                               {"center_x:0.5", "center_y:0.5"}
-        :param - "state"     : state for widget (taken for CONSTANT.STATES) 
-                               default idle
-        :param - "angle"     : angle for widget,
-                               default 0
-        """
-        bunny = BunnyWidget(uid=bunny_uid)
-        self._bunny_widgets[bunny_uid] = bunny
-        bunny.size_hint = kwargs.get("size_hint", (0.05, 0.05))
-        bunny.pos_hint = kwargs.get("pos_hint", {"center_x": 0.99, "center_y": 0.99 })
-        bunny["state"] = kwargs.get("state", "idle")
-        bunny["angle"] = kwargs.get("angle", 0)
-        self.add_widget(bunny)
-
-    def update_bunny_position(self, bunny_uid, position: dict, *args):
-        """
-        :param  bunny_uid: id of bunny, e.g "bunny_1"
-                position: a dict containing pos_hint: e.g position = {"x": 0.5, "y": 1}
-        raises KeyError if bunny is not present
-        """
-        bunny = self._bunny_widgets[bunny_uid]
-        bunny.pos_hint = position
-
-    def update_bunny_state(self, bunny_uid, state: str, *args):
-        """
-        :param  bunny_uid: id of bunny, e.g "bunny_2"
-                state - should be from {"idle", "formation", "charge", "roam"}
-        raises KeyError if bunny state is not right
-        """
-        self._bunny_widgets[bunny_uid]["state"] = state
-
-    def update_bunny_rotation(self, bunny_uid: str, rotation_angle: float or int, *args):
-        """
-        :param bunny_uid: unique id of bunny
-               rotation_angle: angle that bunny rotates to
-        """
-        self._bunny_widgets[bunny_uid]["angle"] = rotation_angle
-
-    #===========================================================#
-    #===========================================================#
-
-    #=================== Shape Methods =========================#
     def add_shape(self, shape_settings, shape_properties):
         widget_ref = None
         try:
@@ -264,31 +134,195 @@ class RobotCanvas(FloatLayout):
             elif shape_properties["shape"] == "Polygon" and shape_properties["segments"] == 0:
                 InformationPopup(_type="e", _message="Number of segments unspecified for Polygon").open()
                 return False
-
-            widget_ref = self.canvas_manager.add_widget(shape_settings, shape_properties)
-            return widget_ref
         except Exception as e:
             print(e)
             return False    
 
-    def save_widget(self, shape_settings, widget):
-        try:
-            self.canvas_manager.untrack_widget(shape_settings, widget)
-            return True
-        except Exception as e:
-            print(e)
+        if self._active_widget is not None:
+            return
+        
+        widget_properties = {}
+        widget = None
+        mode = "Fill"
+        if shape_properties["type"] == "Border":
+            shape_properties["fill_color"] = [0, 0, 0, 0]
+            print("Border detected!!")
+            mode = "Border"
+
+        if shape_properties["shape"] == "Rectangle":
+            widget = DragAndResizeRect()
+        elif shape_properties["shape"] == "Ellipse":
+            widget = DragAndResizePolygon()
+        elif shape_properties["shape"] == "Polygon":
+            widget = DragAndResizePolygon()
+            widget.update_property("segments", shape_properties["segments"])
+            shape_settings._segments_text_input.bind(text=widget.set_segments)            
+
+        elif shape_properties["shape"] == "Triangle":
             return False
 
-    def remove_from_canvas(self, shape_settings, widget):
-        try:
-            self.canvas_manager.remove_widget(shape_settings, widget)
-            return True
-        except Exception as e:
-            print(e)
-            return False
+        widget.update_property("fill_color", shape_properties["fill_color"])
+        widget.update_property("border_color", shape_properties["border_color"])
+        widget.update_property("mode", mode )
+        widget.update_property("canvas_manager", self)
+        shape_settings.bind(_shape_fill_color=widget.set_fill_color)
+        shape_settings.bind(_shape_border_color=widget.set_border_color)
+        shape_settings._lock_size_checkbox.bind(active=widget.set_lock_size)
+        shape_settings._lock_position_checkbox.bind(active=widget.set_lock_pos)
+            
+        widget_properties["widget"] = widget
+        widget_properties["type"] = shape_properties["type"]
+        widget_properties["pos"] = self._parent.center
+        self._parent.add_widget(widget)
+        widget.pos = widget.parent.pos
+        self._active_widget = widget
+        self._shapes.append(widget_properties)
+        return widget
 
-    #==========================================================#
-    #==========================================================#
+
+    def untrack_widget(self, shape_settings, widget):
+        widget.update_property("_fixed", True)
+        shape_settings.unbind(_shape_fill_color=widget.set_fill_color)
+        shape_settings.unbind(_shape_border_color=widget.set_border_color)
+        shape_settings._lock_size_checkbox.unbind(active=widget.set_lock_size)
+        shape_settings._lock_position_checkbox.unbind(active=widget.set_lock_pos)
+        try:
+            shape_settings._segments_text_input.unbind(text=widget.set_segments)
+        except Exception as e:
+            print("untrack_widget", e)
+            pass
+        self._active_widget = None
+        return True
+
+    def remove_widget(self, widget):
+        for index, wid in enumerate(self._shapes):
+            for value in wid.values():
+                if value == widget:
+                    self._parent.remove_widget(widget)
+                    del self._shapes[index]
+        return True
+
+    def add_bunny_widget(self, bunny_uid, **kwargs):
+        """
+        Add a Bunny Widget 
+        (Optional)
+        :param - "size_hint" : size_hint for widget, 
+                               default (0.05, 0.05)
+        "param - "pos_hint"  : pos_hint for widget, default  
+                               {"center_x:0.5", "center_y:0.5"}
+        :param - "state"     : state for widget (taken for CONSTANT.STATES) 
+                               default idle
+        :param - "angle"     : angle for widget,
+                               default 0
+        """
+        bunny = BunnyWidget(uid=bunny_uid)
+        self._bunny_widgets[bunny_uid] = bunny
+        bunny.Cons = self._parent.app.constants
+        bunny.size_hint = kwargs.get("size_hint", (0.05, 0.05))
+        bunny.pos_hint = kwargs.get("pos_hint", {"center_x": 0.0, "center_y": 0.0})
+        bunny["state"] = kwargs.get("state", "charge")
+        bunny["angle"] = kwargs.get("angle", 0)
+        self._parent.add_widget(bunny)
+
+    def update_bunny_position(self, bunny_uid, position: dict, *args):
+        """
+        :param  bunny_uid: id of bunny, e.g "bunny_1"
+                position: a dict containing pos_hint: e.g position = {"x": 0.5, "y": 1}
+        raises KeyError if bunny is not present
+        """
+        self._bunny_widgets[bunny_uid].pos_hint = position
+
+    def update_bunny_state(self, bunny_uid, state: str, *args):
+        """
+        :param  bunny_uid: id of bunny, e.g "bunny_2"
+                state - should be from {"idle", "formation", "charge", "roam"}
+        raises KeyError if bunny state is not right
+        """
+        self._bunny_widgets[bunny_uid]["state"] = state
+
+    def update_bunny_rotation(self, bunny_uid: str, rotation_angle: float or int, *args):
+        """
+        :param bunny_uid: unique id of bunny
+               rotation_angle: angle that bunny rotates to
+        """
+        self._bunny_widgets[bunny_uid]["angle"] = rotation_angle
+
+    @property
+    def bunny_widgets(self):
+        return self._bunny_widgets
+
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
+    def shapes(self):
+        return self._shapes
+
+
+class RobotCanvas(FloatLayout):
+    """
+    Class RobotCanvas
+    Used to initalize and display the robots
+    """  
+    background_color = ListProperty([1, 1, 0, 0])
+    app = ObjectProperty()
+    # Default values for sim
+    current_point = None
+    last_point = None
+    shape_points = []
+    shape_lines = []
+    can_draw_more = True
+    custom_mode_on = False
+    triangle_custom_mode_on = False
+
+    triangle = ((500, 150), (800, 150), (650, 450))
+    square = ((250, 150), (550, 150), (550, 450), (250, 450))
+
+    def __init__(self, **kwargs):
+        super(RobotCanvas, self).__init__(**kwargs)
+        self.bind(pos=self._update_pos, size=self._update_size)
+        self._bunny_widgets = {}
+        self.pos = (0 ,0)
+        self._ids = None
+        self.gridline_widget = None
+        self.canvas_manager = None
+        Clock.schedule_once(self.initialize, 0.5)
+
+
+    def initialize(self, *args):
+        self._ids = self.app.root.ids
+        self.gridline_widget = self.add_gridlines()  
+        self.canvas_manager = CanvasManager(self)
+        self._ids.environment.scale_settings.update_property("canvas_manager", self.canvas_manager)
+        self._ids.choreography.update_property("canvas_manager", self.canvas_manager)
+        self._ids.connections.update_property("canvas_manager", self.canvas_manager)
+        Clock.schedule_once(partial(self.gridline_widget.force_max_length, 5, "m"), 2)
+
+
+    def _update_pos(self, instance, pos):
+        try:
+            self.pos = pos
+            if self.gridline_widget is not None:
+                self.gridline_widget.update_grid()
+        except AttributeError:
+            return
+
+    def _update_size(self, instance, size):
+        self.size = size
+
+    ## Gridlines methods
+    def add_gridlines(self):
+        grid_line_widget = GridWidget()
+        self.app.constants.bind(CANVAS_SCALE=grid_line_widget.update_scale)
+        grid_line_widget.pos_hint = {"x":0, "y":0}
+        grid_line_widget.size_hint = (1, 1)
+        self.add_widget(grid_line_widget)
+        return grid_line_widget
+
+    def remove_gridlines(self):
+        self.remove_widget(self.gridline_widget)
+
 
     def draw_premade_shape(self, name, root):
         if (name == "triangle"):
@@ -395,6 +429,7 @@ class RobotCanvas(FloatLayout):
 class Choreography(BoxLayout):
     def __init__(self, **kwargs):
         super(Choreography, self).__init__(**kwargs)
+        self.canvas_manager = None
 
     def reverse_menu_state(self, root):
         root.ids['custom'].disabled = not root.ids['custom'].disabled
@@ -402,6 +437,10 @@ class Choreography(BoxLayout):
         root.ids['square'].disabled = not root.ids['square'].disabled
         root.ids['triangle'].disabled = not root.ids['triangle'].disabled
         root.ids['clear'].disabled = not root.ids['clear'].disabled
+
+    def update_property(self, property, value):
+        setattr(self, property, value)
+
 
 
 class Toolbar(BoxLayout):
@@ -493,22 +532,115 @@ class Toolbar(BoxLayout):
         pass
 
 
-class Connections(BoxLayout, WirelessNetwork):
-    pass
+class Connections(BoxLayout):
+    
+    app = ObjectProperty()
+    # Handles connections 
+    radio_dongle_wid = ObjectProperty()
+    status_board_wid = ObjectProperty()
+
+    _radio_connected = BooleanProperty(False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._crazy_radio = None
+        self._radio_list = []
+        # create an automated connection attempt
+        self.connect_attempt_event = Clock.schedule_interval(self.connect_to_radio_dongle, 2)
+        self.connect_attempt_event()
+        self.canvas_manager = None
+        # Set the radio dongle widget state to searching
+        # once GUI has been initialized!
+        Clock.schedule_once(self.initialize, 1)
+
+    def update_property(self, property, value):
+        setattr(self, property, value)
+
+
+    def initialize(self, *args):
+        self.radio_dongle_wid.set_state_to_searching()
+
+    def set_channel(self, channel:int):
+        if self._crazy_radio is not None:
+            self._crazy_radio.set_channel(channel)
+    
+    def set_data_rate(self, data_rate):
+        if self._crazy_radio is not None:
+            self._crazy_radio.set_data_rate(data_rate)
+
+    def initialize_radio(self):
+        if self._crazy_radio is None:
+            return
+        self._crazy_radio.set_channel(Cons.CHANNEL)
+        self._crazy_radio.set_data_rate(2)
+        SET_RADIO_CHANNEL = 1
+        self._crazy_radio.set_arc(0)
+        
+    def connect_to_radio_dongle(self, dt, *args):
+        # attempt to connect
+        if self._crazy_radio is not None:
+            return False
+        try:
+            self._crazy_radio = Radio(*args)
+            self._radio_connected = True
+            # get the list of devices
+            print("Connection successful!!")
+            self.initialize_radio()
+            serial_nums = self._crazy_radio.get_serial_nums()
+            self.radio_dongle_wid.set_state_to_connected(self._crazy_radio, serial_nums)
+            # automatically unschedules the event by returning False
+            return False
+        except Exception as e:
+            print(e)
+            return 
+
+    def scan_for_devices(self):
+        if self._crazy_radio:
+            packet = b"x\30" + struct.pack("fff", 0, 0, 0)
+            result = self._crazy_radio.scan_channels(start=1, stop=60, packet=packet)
+            print(result)
+
+    def reset_radio(self):
+        if self._crazy_radio is not None:
+            self._crazy_radio.handle.reset()
+
+    def close_radio(self):
+        if self._crazy_radio is not None:
+            self._crazy_radio.close()
+            self._radio_connected = False
+            self._crazy_radio = None
+
+    def get_radio_devices(self):
+        try:
+            self._crazy_radio._find_devices()
+        except:
+            import cflib.drivers.crazyradio as CR
+            return CR._find_devices()
+
+    #========= Address Address Issues =======#
+    def assign_address(self, bunny, reserve=True):
+        """
+        Request an address for communication
+        if reserve: reserve the address, else do not reserve
+        """
+        for (addr, active) in self._address:
+            if not active:
+                active = True
+                bunny.addr = addr
+    
 
 class Environment(BoxLayout):
-    scale_settings_boxlayout = ObjectProperty()
-    scale_settings_label = ObjectProperty()
-    scale_settings_gridlayout = ObjectProperty()
-    
+    scale_settings = ObjectProperty()
+    app = ObjectProperty()
+
     def __init__(self, **kwargs):
         super(Environment, self).__init__(**kwargs)
         Clock.schedule_once(self.initialize, 0.5)
 
     def initialize(self, *args):
         # Label Background color
-        self.scale_settings_gridlayout.bkg_color = [0.1, 0.1, 0.1, 1]
-
+        pass    
+    
     def on_pos(self, instance, value):
         self.pos = value
 

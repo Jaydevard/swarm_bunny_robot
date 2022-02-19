@@ -84,9 +84,6 @@ if __name__ == "__main__":
             print("space")
             break
 
-
-
-
         for addr in address:
             velocity = (vx, vy, vth)
             state, actual_position = send_velocity_command(radio, addr, velocity)

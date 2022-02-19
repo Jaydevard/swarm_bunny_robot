@@ -1,44 +1,64 @@
 # should be built on top of Crazyradi
+from distutils import core
+from os import stat
 from cflib.drivers.crazyradio import Crazyradio
+import cflib.drivers.crazyradio as CR
 from kivy.clock import Clock
+from struct import pack, unpack
+from core.constants import Constants as C
 
 class Radio(Crazyradio):
     
     def __init__(self, device=None, devid=0, serial=None):
         super().__init__(device, devid, serial)
 
+    def get_serial_nums(self):
+        """
+        return the serial numbers
+        """
+        return CR.get_serials()
 
-    def set_channel(self, channel):
-        return super().set_channel(channel)
+    def _find_devices(self):
+        """
+        finds the radio dongles
+        """
+        return CR._find_devices()
 
-    def set_data_rate(self, datarate):
-        return super().set_data_rate(datarate)
+    def send_vel_cmd(self, addr, velocity, radio=None):
+        header = b'\x30'  # velocity command header as CRTP
+        velocity_command = header + pack('fff', velocity[0], velocity[1], velocity[2])
+        radio.set_address(addr)
+        response = radio.send_packet(velocity_command)  # this message will be received by the robot.
+        if response.ack and len(response.data)==13:
+            state = response.data[0] & 0xF0
+            battery_level = response.data[0] & 0x0F
+            actual_position = unpack('fff', response.data[1:])
+        else:
+            actual_position = (None, None, None)
+            state = None
+            battery_level = None
 
-    def scan_channels(self, start, stop, packet):
-        return super().scan_channels(start, stop, packet)
+        return state,battery_level,actual_position
 
-    def set_address(self, address):
-        return super().set_address(address)
+        # state bit  0:3 :
+        #             init_state = 0x0,
+        #             magcalibration_state = 0x1,
+        #             idle_state = 0x2,
+        #             run_state = 0x3,
+        #             gotocharge_state = 0x4,
+        #             charging_state = 0x5,
+        #             sleep_state = 0x6,
+        #
+        #             error_state = 0xE,
+        #             debug_state = 0xF
 
-    def set_arc(self, arc):
-        return super().set_arc(arc)
-
-    def send_packet(self, dataOut):
-        return super().send_packet(dataOut)
+        # state bit  4:7 : battery level in 16 levels
+        
 
 
 if __name__ == "__main__":
-    import time
-    def start_radio(*args):
-        print("starting radio!!")
-        try:
-            radio = Crazyradio()
-            print("connection successful!!")
-        except Exception as e:
-            print(e)
-    print("calling!!")
-    while True:
-        start_radio()
-        time.sleep(0.5)
+    pass
+        
 
+        
         

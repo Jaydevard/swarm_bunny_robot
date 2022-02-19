@@ -116,18 +116,14 @@ BoxLayout:
                     
                     # Main Box Layout for Environment Tab
                     Environment:
-                        id: environment_tab
+                        id: environment
                         size_hint: 1, 1
                         orientation: "vertical"
-                        scale_settings_boxlayout: scale_settings_boxlayout
-                        scale_settings_label: scale_settings_label
-                        scale_settings_gridlayout: scale_settings_gridlayout
-
+                        scale_settings: scale_settings
                         # Box Layout for Scale Settings
                         BoxLayout:
-                            id : scale_settings_boxlayout
                             orientation: "vertical"
-                            size_hint: 1, 0.2
+                            size_hint: 1, 0.08
                             pos_hint: {"top": 1}
 
                             Label:
@@ -140,100 +136,14 @@ BoxLayout:
                                         size: self.size
                                 
                                 text: "[b]Scale Settings[/b]"
-                                size_hint: 1, 0.15
+                                size_hint: 1, 1
                                 markup: True
 
-                            # Scale settings
-                            GridLayout:
-                                id: scale_settings_gridlayout
+                            ScaleSettings:
+                                id: scale_settings
                                 size_hint: 1, 0.8
-                                pos_hint: {"top": 1} 
-                                cols: 2
-                                rows: 4
-                                spacing: 2
-                                bkg_color: (0, 0, 0, 1)
-                                text_input_font_size: 14
-                                label_text_font_size: 15                       
+                                pos_hint: {"top": 1}
 
-                                # (r1, c1)
-                                Label:
-                                    size_hint: 1, 0.5
-                                    font_size: self.parent.label_text_font_size
-                                    canvas.before:
-                                        Color: 
-                                            rgba: self.parent.bkg_color
-                                        
-                                        Rectangle: 
-                                            pos: self.pos
-                                            size: self.size
-                                    text: "[i]Grid Base Length [m][/i]"
-                                    markup: True
-                                
-                                # (r1, c2)
-                                TextInput:
-                                    size_hint: 1, 1
-                                    multiline: False
-                                    font_size: self.parent.text_input_font_size
-                                
-                                
-                                # (r2, c1)
-                                Label:
-                                    size_hint: 1, 1
-                                    font_size: self.parent.label_text_font_size
-                                    canvas.before:
-                                        Color: 
-                                            rgba: self.parent.bkg_color
-                                        Rectangle: 
-                                            pos: self.pos
-                                            size: self.size
-                                    text: "[i]Grid Max Length[m] [/i]"
-                                    markup: True
-                                
-                                #(r2, c2)
-                                TextInput:
-                                    size_hint: 1, 1
-                                    multiline: False
-                                    font_size: self.parent.text_input_font_size
-                                
-                                #(r3, c1)
-                                Label:
-                                    size_hint: 1, 1
-                                    font_size: self.parent.label_text_font_size
-                                    canvas.before:
-                                        Color: 
-                                            rgba: self.parent.bkg_color
-                                        Rectangle: 
-                                            pos: self.pos
-                                            size: self.size
-                                    text: "[i]Max Width of Space [m] [/i]"
-                                    markup: True                
-                                
-                                #(r3, c2)
-                                TextInput:
-                                    size_hint: 1, 1
-                                    multiline: False
-                                    font_size: self.parent.text_input_font_size              
-                                
-                                
-                                #(r4, c1)
-                                Label:
-                                    size_hint: 1, 1
-                                    font_size: self.parent.label_text_font_size
-                                    canvas.before:
-                                        Color: 
-                                            rgba: self.parent.bkg_color
-                                        Rectangle: 
-                                            pos: self.pos
-                                            size: self.size
-                                    text: "[i]Max Length of Space [m][/i]"
-                                    markup: True                
-                                
-                                #(r4, c2)
-                                TextInput:
-                                    size_hint: 1, 1
-                                    multiline: False
-                                    font_size: self.parent.text_input_font_size              
-                                
 
                         # Botton Layout
                         BoxLayout:
@@ -259,12 +169,12 @@ BoxLayout:
                                             size: self.size
                                     
                                     text: "[b]Shape Settings[/b]"
-                                    size_hint: 1, 0.025
+                                    size_hint: 1, 0.05
                                     markup: True                          
                                 
                                 ShapeSettings:
                                     _root: root
-                                    size_hint: 1, 0.5
+                                    size_hint: 1, 0.8
                                     pos_hint: {"top": 1}
                                 RecycleView:
                                     pos: self.pos
@@ -274,8 +184,11 @@ BoxLayout:
 
                 TabbedPanelItem:
                     text: "Connections"
+
                     # Main Connections Layout
                     Connections:
+                        radio_dongle_wid: radio_dongle_widget
+                        status_board_wid: status_board
                         id: connections
                         size_hint: 1, 1
                         orientation: "vertical"
@@ -338,37 +251,44 @@ BoxLayout:
                     Choreography:
                         id: choreography
                         orientation: 'vertical'
-                        Button:
-                            text: "Custom"
-                            id: custom
-                            size_hint: 1, 0.2
-                            on_press: root.ids.robot_canvas.custom_mode(root)
+                        # Button:
+                            # text: "Custom"
+                            # id: custom
+                            # size_hint: 1, 0.2
+                            # on_press: root.ids.robot_canvas.custom_mode(root)
+                            # pos_hint: {"top":1}
+                        # Button:
+                            # text: "Custom Triangle"
+                            # id: custom_triangle
+                            # size_hint: 1, 0.2
+                            # on_press: root.ids.robot_canvas.triangle_custom_mode(root)
+                            # pos_hint: {"top":1}
+                        # Button:
+                            # text: "Triangle"
+                            # id: triangle
+                            # size_hint: 1, 0.2
+                            # on_press: root.ids.robot_canvas.draw_premade_shape("triangle", root)
+                            # pos_hint: {"top":1}
+                        # Button:
+                            # text: "Square"
+                            # id: square
+                            # on_press: root.ids.robot_canvas.draw_premade_shape("square", root)
+                            # size_hint: 1, 0.2
+                            # pos_hint: {"top":1}
+                        # Button:
+                            # text: "Clear"
+                            # id: clear
+                            # disabled: True
+                            # on_press: root.ids.robot_canvas.clear_canvas(root)
+                            # size_hint: 1, 0.2
+                            # pos_hint: {"top":1}
+                        ChoreoBoard:
+                            id: choreoboard
+                            size_hint: 1, 0.5
                             pos_hint: {"top":1}
-                        Button:
-                            text: "Custom Triangle"
-                            id: custom_triangle
-                            size_hint: 1, 0.2
-                            on_press: root.ids.robot_canvas.triangle_custom_mode(root)
-                            pos_hint: {"top":1}
-                        Button:
-                            text: "Triangle"
-                            id: triangle
-                            size_hint: 1, 0.2
-                            on_press: root.ids.robot_canvas.draw_premade_shape("triangle", root)
-                            pos_hint: {"top":1}
-                        Button:
-                            text: "Square"
-                            id: square
-                            on_press: root.ids.robot_canvas.draw_premade_shape("square", root)
-                            size_hint: 1, 0.2
-                            pos_hint: {"top":1}
-                        Button:
-                            text: "Clear"
-                            id: clear
-                            disabled: True
-                            on_press: root.ids.robot_canvas.clear_canvas(root)
-                            size_hint: 1, 0.2
-                            pos_hint: {"top":1}
+        
+                        BoxLayout:
+                            orientation: "vertical"
 
         # Right Column
         BoxLayout:
@@ -378,6 +298,7 @@ BoxLayout:
             padding: 1
             RobotCanvas:
                 id: robot_canvas
+                app: app
                 canvas.before:
                     Color:
                         rgba: self.background_color
