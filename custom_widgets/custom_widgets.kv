@@ -84,7 +84,7 @@
     canvas.before:
         PushMatrix
         Rotate:
-            angle: self._angle
+            angle: self.angle
             axis: 0, 0, 1
             origin: self.center
     canvas.after:
@@ -344,7 +344,7 @@
     Spinner:
         id: _shape_spinner
         text: "Rectangle"
-        values: ["Rectangle","Triangle", "Polygon","Ellipse", "Custom"]
+        values: ["Rectangle","Polygon","Ellipse"]
         sync_height: True
     
     #(r1, c3)
@@ -490,12 +490,182 @@
                 size: self.size
 
 
-      
+<ScaleSettings>:
+    max_length_label: max_length_label
+    text_input_wid: text_input_wid
+    cols: 2
+    Label:
+        id: max_length_label
+        text: "Maximum Length [m]"
+        canvas.before:
+            Color:
+                rgba: 0, 0, 0, 1
+            Rectangle: 
+                pos: self.pos
+                size: self.size
+        
+    TextInput:
+        id: text_input_wid
+        text: "15"
+        multiline: False
+        input_filter: "float"
 
 
+
+
+#======= Choreography Widgets =====================#
+<SelectableLabel>:
+    canvas.before:
+        Color: 
+            rgba: (0, 1, .7) if self.selected else (0,0,0,1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<AnimationSelection>:
+    viewclass: 'SelectableLabel'
+    SelectableRecycleBoxLayout:
+        default_size: None, dp(56)
+        default_size_hint: 1, None
+        size_hint_y: None
+        height: self.minimum_height
+        orientation: 'vertical'
+        multiselect: True
+        touch_multiselect: True
+
+
+<ChoreoBoard>:
+    orientation: "vertical"
+    padding: 5
+    spacing: 5
+    GridLayout:
+        cols: 4
+        Button:
+            id: square_btn
+            text: "Rectangle"
+            canvas:
+        Button:
+            id: ellipse_btn
+            text: "Ellipse"
+
+        Button:
+            id: cirle_btn
+            text: "circle"
+
+        Button:
+            id: line_btn
+            text: "Line"
+
+    BoxLayout:
+        pos_hint: {"top": 1}
+        size_hint: 1, 0.1
+        orientation: "horizontal"
+        size_hint: 1, 1
+        pos_hint: {"top":1}
+        Button:
+            text: "Add"
+            size_hint: 0.5, 1
+            pos_hint: {"left": 1}
+        Spinner:
+            text: "Rotate"
+            padding_x: 5
+            pos_hint: {"left": 1}
+            values: ["Rotate", "Morph"]
+            canvas.before:
+                Color: 
+                    rgb: 0,0,0
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+        TextInput:
+            pos_hint: {"left":1}
+            size_hint: 0.6, 1
+            id: rotation_input
+            multiline: False
+            input_filter: "float"
+        Label:
+            size_hint: 0.5, 1
+            text: "after"
+            canvas.before:
+                Color: 
+                    rgb: 0,0.4,1
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+        TextInput: 
+            size_hint: 0.3, 1
+            id: rotation_delay_input
+            multiline: False
+            input_filter: "float"
+        Spinner:
+            size_hint: 0.3, 1
+            values: ["min", "s"]
+            canvas.before:
+                Color:
+                    rgb: 0,0,0
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+            sync_height: True
+
+        Label:
+            text: "Type"
+            size_hint: 0.5, 1
+            pos_hint: {"left":1}
+            canvas.before:
+                Color:
+                    rgb: 0, 0.4, 0.8
+                Rectangle:
+                    size: self.size
+                    pos: self.pos        
+        Spinner:
+            size_hint: 0.8, 1
+            text: "shape"
+            multiline: False
+            values: ["along line", "shape"]
+            sync_height: True
             
+    BoxLayout:
+        pos_hint: {"top": 1}
+        size_hint: 1, 0.2
+        orientation:"horizontal"
+        BoxLayout:
+            size_hint: 0.5, 1
+            pos_hint: {"left": 1}
+            
+            BoxLayout:
+                size_hint: 0.5, 1
+                pos_hint: {"left": 1}
+            
+            Label:
+                size_hint: 1, 1
+                pos_hint: {"left": 1}
+                text: "Duration :"
+                canvas.before:
+                    Color:
+                        rgb: 0,0.4,0.8
+                    Rectangle:
+                        size: self.size
+                        pos: self.pos
+            TextInput:
+                size_hint: 0.4, 1
+                pos_hint: {"left": 1}
+                multiline: False
+                filter_input: "float"
+            Spinner:
+                text: "min"
+                size_hint: 0.7, 1
+                values: ["min", "s"]
+                sync_height: True
+            
+            BoxLayout:
+                size_hint: 1.8, 1
+                pos_hint: {"left": 1}
 
+    BoxLayout:
 
-
+        size_hint: 1, 1
+        pos_hint: {"top": 1}
+        AnimationSelection:
 
 
