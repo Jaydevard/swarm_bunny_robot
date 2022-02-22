@@ -52,12 +52,39 @@ class CanvasManager(Widget):
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
         Window.bind(on_motion=self.on_window_motion)
         self._canvas_scale = None
-        Clock.schedule_once(self.check_bunny_movement, 6)
+        Clock.schedule_once(self.check_bunny_movement, 2)
 
     def check_bunny_movement(self, *args):
         self.add_bunny_widget(bunny_uid="LGN01")
-        self.bunny_widgets["LGN01"].pos_hint = {"center_x": 0.5, "center_y": 0.5}
-        Clock.schedule_interval(partial(self.bunny_widgets["LGN01"].move, (5,5,5), "sim"), 5)
+        self.add_bunny_widget(bunny_uid="LGN02")
+        self.add_bunny_widget(bunny_uid="LGN03")
+
+        self.bunny_widgets["LGN01"].pos_hint = {"center_x": 0.2, "center_y": 0.5}
+        self.bunny_widgets["LGN02"].pos_hint = {"center_x": 0.7, "center_y": 0.5}
+        self.bunny_widgets["LGN03"].pos_hint = {"center_x": 0.1, "center_y": 0.3}
+
+        self.bunny_widgets["LGN01"].v = [100, 0, 100]
+        self.bunny_widgets["LGN02"].v = [-100, 0, 100]
+        self.bunny_widgets["LGN03"].v = [-100, -100, 100]
+        
+        Clock.schedule_interval(self.update_bunny_movement, 0.01)
+
+    def update_bunny_movement(self, *args):
+        for bunny in self.bunny_widgets:
+            for other_bunny in self.bunny_widgets:
+                if(bunny == other_bunny):
+                    continue
+                else:
+                    b1 = self.bunny_widgets[bunny]
+                    b2 = self.bunny_widgets[other_bunny]
+                    dist = math.hypot(b2.pos[0] - b1.pos[0], b2.pos[1] - b1.pos[1])
+                    if(dist < 100):
+                        self.bunny_widgets[bunny].v[0] *= -1
+                        self.bunny_widgets[bunny].v[1] *= -1
+        
+        for x in self.bunny_widgets:
+            self.bunny_widgets[x].move(self.bunny_widgets[x].v, "sim", args[0])
+
 
     def update_canvas_scale(self, instance, value):
         """
