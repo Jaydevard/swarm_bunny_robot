@@ -24,11 +24,11 @@ class Radio(Crazyradio):
         """
         return CR._find_devices()
 
-    def send_vel_cmd(self, addr, velocity, radio=None):
+    def send_vel_cmd(self, addr, velocity, *args):
         header = b'\x30'  # velocity command header as CRTP
         velocity_command = header + pack('fff', velocity[0], velocity[1], velocity[2])
-        radio.set_address(addr)
-        response = radio.send_packet(velocity_command)  # this message will be received by the robot.
+        self.set_address(addr)
+        response = self.send_packet(velocity_command)  # this message will be received by the robot.
         if response.ack and len(response.data)==13:
             state = response.data[0] & 0xF0
             battery_level = response.data[0] & 0x0F
@@ -37,6 +37,7 @@ class Radio(Crazyradio):
             actual_position = (None, None, None)
             state = None
             battery_level = None
+        print(state, battery_level, actual_position)
 
         return state,battery_level,actual_position
 

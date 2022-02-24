@@ -250,6 +250,7 @@ BoxLayout:
                     text: "Choreography"
                     Choreography:
                         id: choreography
+                        choreoboard: choreoboard
                         orientation: 'vertical'
                         # Button:
                             # text: "Custom"
@@ -284,11 +285,14 @@ BoxLayout:
                             # pos_hint: {"top":1}
                         ChoreoBoard:
                             id: choreoboard
-                            size_hint: 1, 0.5
+                            size_hint: 1, 1
                             pos_hint: {"top":1}
-        
+
                         BoxLayout:
-                            orientation: "vertical"
+                            size_hint: 1, 0.3
+                            pos_hint: {"top": 1}
+                            
+        
 
         # Right Column
         BoxLayout:

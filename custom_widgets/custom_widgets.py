@@ -1,3 +1,5 @@
+from pickle import TRUE
+from tokenize import String
 from kivy.core.text import markup
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
@@ -34,6 +36,7 @@ import math
 import numpy as np
 import os
 from core.exceptions import *
+from kivy.graphics.transformation import Matrix
 
 
 
@@ -231,6 +234,7 @@ class BunnyWidget(Image, ButtonBehavior):
                     self.state = "formation"
 
         elif mode == "sim":
+            print(vel[0], args[0])
             diff_x = vel[0] * args[0]
             diff_y = vel[1] * args[0]
             self.pos_hint = {}
@@ -796,6 +800,7 @@ class DragAndResizePolygon(DragBehavior, Widget):
                 first_quadrant_coords.append(coord)    
         
         return_val = [False, False]
+        
         # sort ascending angle
         sorted_first_quadrant_coords = sorted(first_quadrant_coords, key=lambda x:x[-1])
         for index, coord in enumerate(sorted_first_quadrant_coords):
@@ -810,7 +815,7 @@ class DragAndResizePolygon(DragBehavior, Widget):
                 r_touch = touch_arr[0] / cos(touch_angle) 
                 return_val = [False, False]
 
-                if r_touch <= (r + self.border_width*2 ):
+                if r_touch <= (r + self.border_width*3 ):
                     return_val[0] = True
                     if in_border and abs(r_touch - r) <= (self.border_width*3):
                         return_val[1] = True
@@ -941,18 +946,17 @@ class DragAndResizePolygon(DragBehavior, Widget):
 
 class DragAndResizeTriangle(DragBehavior, Widget):
     fill_color = ListProperty([1, 0, 1, 0])
-    _triangle_points = ListProperty([])
+    triangle_points = ListProperty([])
     border_color = ListProperty([0, 0, 1, 1])
-    _border_width = NumericProperty(2)
-    _border_points = ListProperty([])
+    border_width = NumericProperty(2)
+    border_points = ListProperty([])
     _r_tol = NumericProperty(25)
     point_size = NumericProperty(5)
 
     def __init__(self, **kwargs):
         super(DragAndResizeTriangle, self).__init__(**kwargs)
         self.constrain_to_parent_window = True
-        self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
-        self._drag_active = False
+        self._drag_active = True
         self._triangle_points_rel = [] # store relative points of triangle points
         self._index_num = None
         self.shape_settings = None
@@ -960,6 +964,25 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         self.lock_size = False
         self.lock_pos = False
         self._fixed = False
+        self._touch = None
+
+    def __del__(self):
+        Window.unbind(on_motion=self.on_window_motion)
+    
+    def on_window_motion(self, *args):
+        for arg in args:
+            if type(arg).__name__ == "MouseMotionEvent":
+                self._touch = arg
+
+    def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+        if self._touch is None:
+            return True
+        elif ("delete" or "backspace" in keycode) and self._fixed:
+            is_within_shape, is_within_border = self.check_relative_touch_pos(self._touch, in_border=True)
+            if (is_within_border and self.mode == "Border") or (is_within_shape and self.mode == "Fill"):
+                self.canvas_manager.remove_widget(self)
+        return True
+
 
     def set_lock_pos(self, instance, value):
         if value:
@@ -991,40 +1014,34 @@ class DragAndResizeTriangle(DragBehavior, Widget):
     def update_property(self, property, value):
         setattr(self, property, value)
 
-
     def on_pos(self, instance, value):
-        print("pos adjusted!!")
         self.pos = value
         self.draw_triangle()
 
     def on_size(self, instance, value):
-        print("size adjusted!!")
         self.size = value
         self.draw_triangle()
 
     def draw_triangle(self):
-        print("triangle being redrawn!!")
-        if self._triangle_points == []:
-            self._triangle_points = [self.x, self.y, 
+        if self.triangle_points == []:
+            self.triangle_points = [self.x, self.y, 
                                     self.x+self.width/2, self.y+self.height, 
                                     self.x+self.width, self.y]
-            self._triangle_points = self._triangle_points
-            self._triangle_points_rel = self.triangle_to_wid()
+            self.triangle_points = self.triangle_points
+            self.triangle_points_rel = self.triangle_to_wid()
 
         elif self._drag_active:
             # get relative pos w.r.t previous position
-            for index, point in enumerate(self._triangle_points):
+            for index, point in enumerate(self.triangle_points):
                 if index % 2 == 0:
-                    self._triangle_points[index] = self.x + self._triangle_points_rel[index]
+                    self.triangle_points[index] = self.x + self.triangle_points_rel[index]
                 else:
-                    self._triangle_points[index] = self.y + self._triangle_points_rel[index]
+                    self.triangle_points[index] = self.y + self.triangle_points_rel[index]
             # force update
-            self._triangle_points = self._triangle_points
+            self.triangle_points = self.triangle_points
 
-        border_points = self._triangle_points + self._triangle_points[0:2]
-        self._border_points = border_points
-    
-
+        border_points = self.triangle_points + self.triangle_points[0:2]
+        self.border_points = border_points
 
 
     def check_touch_pos(self, touch, check_is_within=False):
@@ -1034,9 +1051,9 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         """
         is_within = False
         (x, y) = touch.pos
-        [x0, y0] = self._triangle_points[0:2]
-        [x1, y1] = self._triangle_points[2:4]
-        [x2, y2] = self._triangle_points[4:6]
+        [x0, y0] = self.triangle_points[0:2]
+        [x1, y1] = self.triangle_points[2:4]
+        [x2, y2] = self.triangle_points[4:6]
         if check_is_within:
             def area(x0, y0, x1, y1, x2, y2):
                 return abs((x0*(y1-y2) + x1*(y2 - y0) + x2*(y0 - y1))/2.0)
@@ -1049,11 +1066,10 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         
         tol_r = self._r_tol # tolerance radius
         (h, k) = touch.pos
-        x_s = self._triangle_points[0::2]
-        y_s = self._triangle_points[1::2]
+        x_s = self.triangle_points[0::2]
+        y_s = self.triangle_points[1::2]
         points = list(zip(x_s,y_s))
         for index, (x, y) in enumerate(points):
-            print(h, k, x, y)
             touch_radius = math.sqrt((x-h)**2  + (y-k)**2)
             if  touch_radius <= tol_r:
                 return [index, (x,y), is_within]
@@ -1064,8 +1080,8 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         """
         returns relative triangle points to widget
         """
-        xs = self._triangle_points[0::2]
-        ys = self._triangle_points[1::2]
+        xs = self.triangle_points[0::2]
+        ys = self.triangle_points[1::2]
         tri_points = list(zip(xs, ys))
         rel = []
         for coord in tri_points:
@@ -1132,61 +1148,41 @@ class DragAndResizeTriangle(DragBehavior, Widget):
         if "size_node" in touch.ud.keys():
             if "point_index" in touch.ud.keys():
                 index = touch.ud["point_index"]  # 0, 1, 2
-                index_0 = self.to_widget(*self._triangle_points[0:2], relative=True)
-                index_1 = self.to_widget(*self._triangle_points[2:4], relative=True)
-                index_2 = self.to_widget(*self._triangle_points[4:6], relative=True)
+                index_0 = self.to_widget(*self.triangle_points[0:2], relative=True)
+                index_1 = self.to_widget(*self.triangle_points[2:4], relative=True)
+                index_2 = self.to_widget(*self.triangle_points[4:6], relative=True)
                 xx, yy = self.to_widget(*touch.pos, relative=True)
-                (dx, dy) = touch.dpos
-
                 if index is None or \
                     ((touch.pos[0] < self.parent.x or touch.pos[1] > (self.parent.x + self.parent.width)*0.99) or \
                     (touch.pos[1] < self.parent.y or touch.pos[1] > (self.parent.y + self.parent.height)*0.99)):
                     return super(DragAndResizeTriangle, self).on_touch_up(touch)
 
                 elif index == 0:
-                    if self._shift_lock:
-                        if abs(dx) > abs(dy):
-                            self._triangle_points[0] = touch.pos[0]
-                        elif yy <= index_1[1]:
-                            self._triangle_points[1] = touch.pos[1]
-                    else:
-                        self._triangle_points[1] = touch.pos[1]
-                        self._triangle_points[0] = touch.pos[0]
+                    self.triangle_points[1] = touch.pos[1]
+                    self.triangle_points[0] = touch.pos[0]
 
                 elif index == 1:
                     if yy > min(index_0[1], index_2[1]):
-                        if self._shift_lock:
-                            if abs(dx) > abs(dy): 
-                                self._triangle_points[2] = touch.pos[0]
-                            else:
-                                self._triangle_points[3] = touch.pos[1]
-                        else:
-                            self._triangle_points[2] = touch.pos[0]
-                            self._triangle_points[3] = touch.pos[1]
+                        self.triangle_points[2] = touch.pos[0]
+                        self.triangle_points[3] = touch.pos[1]
 
                 elif index == 2:
-                    if self._shift_lock:
-                        if abs(dx) > abs(dy):
-                            self._triangle_points[4] = touch.pos[0]
-                        else:
-                            self._triangle_points[5] = touch.pos[1]
-                    else:
-                        self._triangle_points[4] = touch.pos[0]
-                        self._triangle_points[5] = touch.pos[1]
+                    self.triangle_points[4] = touch.pos[0]
+                    self.triangle_points[5] = touch.pos[1]
 
-                self._triangle_points = self._triangle_points                
-                border_points = self._triangle_points + self._triangle_points[0:2]
+                self.triangle_points = self.triangle_points                
+                self.border_points = self.triangle_points + self.triangle_points[0:2]
 
                 # update the widget's position and size
-                [x0, y0] = self._triangle_points[0:2]
-                [x1, y1] = self._triangle_points[2:4]
-                [x2, y2] = self._triangle_points[4:6]
+                [x0, y0] = self.triangle_points[0:2]
+                [x1, y1] = self.triangle_points[2:4]
+                [x2, y2] = self.triangle_points[4:6]
                 self.width = max(x0, x1, x2) - min(x0, x1, x2)
                 self.x = min(x0, x1, x2)
                 self.height = max(y0, y1, y2) - min(y0, y1, y2)
                 self.y = min(y0, y1, y2)
 
-        self._triangle_points_rel = self.triangle_to_wid()        
+        self.triangle_points_rel = self.triangle_to_wid()        
         return super(DragAndResizeTriangle, self).on_touch_move(touch)
 
     def on_touch_up(self, touch):
@@ -1674,7 +1670,7 @@ class ScaleSettings(GridLayout):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.canvas_manager = None
-        Clock.schedule_once(self.initialize, 1)
+        Clock.schedule_once(self.initialize, 5)
 
     def on_pos(self, instance, value):
         self.pos = value
@@ -1688,48 +1684,116 @@ class ScaleSettings(GridLayout):
 
     def update_property(self, property, value):
         setattr(self, property, value)
-        
 
 
 class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior,
                                  RecycleBoxLayout):
-    pass
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 
-class SelectableLabel(RecycleDataViewBehavior, Label):
+
+class SelectableBoxLayout(RecycleDataViewBehavior, BoxLayout):
     index = None
     selected = BooleanProperty(False)
     selectable = BooleanProperty(True)
+    text = StringProperty("")
+    line_pos_x = BoundedNumericProperty(0.1, min=0, max=1, errorvalue=0)
+    border_color = ListProperty([1, 0.5, 0.5, 1])
+    allow_edit = BooleanProperty(True)
+    rv = ObjectProperty()
+    values = DictProperty({})
+    set_active_index = ObjectProperty()
+    starting_x = BoundedNumericProperty(0, min=0, max=1, errorvalue=0)
+
+    ## Custom attributes
+    angle = BoundedNumericProperty(0, min=-360, max=360, errorvalue=0)
+    duration = BoundedNumericProperty(0, min=0)
+    expansion = NumericProperty(0)
+    transition = StringProperty("")
+    transition_type = StringProperty("")
+
+
+    def on_values(self, instance, values):
+        for (key, value) in values.items():
+            setattr(self, key, value)
 
     def refresh_view_attrs(self, rv, index, data):
         self.index = index
+        self.rv = rv
         return super().refresh_view_attrs(rv, index, data)
     
     def on_touch_down(self, touch):
-        
-        if super(SelectableLabel, self).on_touch_down(touch):
-            return True
+
         if self.collide_point(*touch.pos) and self.selectable:
             return self.parent.select_with_touch(self.index, touch)
     
+        return super(SelectableBoxLayout, self).on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        if self.collide_point(*touch.pos) and self.selected:
+            if self.allow_edit:
+                xx, yy = self.to_widget(*touch.pos, relative=True)
+                new_line_pos_x = xx/self.width - self.starting_x
+                if new_line_pos_x > 0:
+                    self.line_pos_x = new_line_pos_x
+        
+        return super().on_touch_move(touch)
+
     def apply_selection(self, rv, index, is_selected):
         self.selected = is_selected
         if is_selected:
-            print(rv.data[index])
+            ## delete an entry
+            values = {'angle': self.angle, 'transition': self.transition, }
+
+            self.set_active_index(self.index, {})
+            ## How to add to the list!!!
+            if len(rv.data) == 0:
+                rv.data.append({'_text': '5'})
+        else:
+            self.rv.layout_manager.clear_selection()
 
 
 class AnimationSelection(RecycleView):
+    active_index = NumericProperty()
+    canvas_manager = ObjectProperty(allownone=True)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.data = [{'text': str(x)} for x in range(20)]
+        Clock.schedule_once(partial(self.add_entry, {'text': 'Hello!!'}), 5)
+
+    def add_entry(self, values: dict, *args):
+        self.data.append({'values': values, 
+                          'set_active_index': self.set_active_index})
+
+    def set_active_index(self, index, values):
+        self.active_index = index
+        self.active_index_values = values
+
+    def delete_entry(self, *args):
+        tmp = self.data
+        del tmp[self.active_index]
+        self.data = tmp
+        self.layout_manager.clear_selection()
+    
+    def move_up(self):
+        return
 
 
 class ChoreoBoard(BoxLayout):
-    
+    canvas_manager = ObjectProperty(allownone=True)
+    animation_selection = ObjectProperty(allownone=True)
+    requested_shape = StringProperty("")
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         pass
-    
+
+    def on_canvas_manager(self, instance, value):
+        if value is not None:
+            self.animation_selection.canvas_manager = value
+
     def on_pos(self, instance, value):
         self.pos = value
 
@@ -1740,5 +1804,152 @@ class ChoreoBoard(BoxLayout):
     def initialize(self, *args):
         pass
 
-        
+    def add_shape_to_canvas(self, *args):
+        if self.canvas_manager is None:
+            return
+        self.canvas_manager
 
+
+        
+class ChoreoRect(DragAndResizeRect):
+    c_border_color = ListProperty([1, 0.5, 1, 1])
+    n_border_color = ListProperty([0.5, 1, 1, 1])
+    border_width = NumericProperty(10)
+    allow_edit = BooleanProperty(True)
+    touch_tol = NumericProperty(10)
+    angle = BoundedNumericProperty(0, min=0, max=360, errorvalue=0)
+    n_border_points = ListProperty([])
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        Clock.schedule_once(self.initialize, 1)
+
+
+    def on_pos(self, instance, value):
+        self.redraw_n_line()
+        self.pos = value
+
+    def on_size(self, instance, value):
+        self.redraw_n_line()
+        self.size = value
+        self.fill_color = [0,0,0,0]
+
+    def initialize(self, *args):
+        self.n_border_points = [self.x-self.border_width, self.y-self.border_width, 
+                                self.x+self.width-self.border_width, self.y-self.border_width,
+                                self.x+self.width-self.border_width, self.y+self.height-self.border_width,
+                                self.x-self.border_width, self.y+self.height-self.border_width, 
+                                self.x-self.border_width, self.y-self.border_width]
+
+
+    def on_angle(self, instance, value):
+        if value >= 360:
+            angle = 0
+
+    def set_rotation_angle(self, instance, value, *args):
+            self.angle = value
+
+    def redraw_n_line(self, *args):
+        self.n_border_points = [self.x-self.border_width, self.y-self.border_width, 
+                                self.x+self.width-self.border_width, self.y-self.border_width,
+                                self.x+self.width-self.border_width, self.y+self.height-self.border_width,
+                                self.x-self.border_width, self.y+self.height-self.border_width, 
+                                self.x-self.border_width, self.y-self.border_width]
+
+
+class ChoreoPolygon(DragAndResizePolygon):
+    c_border_color = ListProperty([1, 0.5, 1, 1])
+    n_border_color = ListProperty([0.5, 1, 1, 1])
+    border_width = NumericProperty(2)
+    allow_edit = BooleanProperty(True)
+    touch_tol = NumericProperty(10)
+    angle = BoundedNumericProperty(0, min=0, max=360, errorvalue=0)
+    n_border_points = ListProperty([])
+    is_expanding = BooleanProperty(False)
+
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.expansion_ratio = 1
+        self.mode = "Fill"
+        self.centroid = None
+
+    def on_angle(self, instance, value):
+        if value >= 360:
+            angle = 0
+
+    def expand(self, instance, value, *args):
+        self.is_expanding = True
+        self.expansion_ratio -= 0.1
+        self.expand_points(self.expansion_ratio)
+        self.is_expanding = False
+
+
+    def set_rotation_angle(self, instance, value, *args):
+        self.angle += 5
+        # self.angle = value
+
+
+    def on_pos(self, instance, value, *args):
+        self.pos = value
+        self.draw_border()
+        if not self.is_expanding:
+            self.draw_n_border()
+        self.fill_color = [0,0,0,0]
+
+    def on_size(self, instance, value):
+        self.size = value
+        self.draw_border()
+        if not self.is_expanding:
+            self.draw_n_border()
+
+    def draw_n_border(self, *args):
+        points = []
+        angle_step = (pi * 2) / float(self.segments)
+        segments = int(self.segments)
+        for i in range(segments) :
+            x = self.x + (1 + cos((angle_step * i) + pi/2)) * (self.width/2)
+            y = self.y + (1 + sin((angle_step * i) + pi/2)) * (self.height/2)
+            points.extend([x, y])
+        points.extend([points[0], points[1]])
+        self.n_border_points = points
+
+
+    def expand_points(self, ratio, *args):
+        ratio = float(ratio)
+        expansion_matrix = np.array([[ratio, 0], [0, ratio]])
+        x_points = self.line_points[0::2]
+        y_points = self.line_points[1::2]
+        coords = list(zip(x_points, y_points))
+        coords_arr = np.array(coords).T
+        self.centroid = np.reshape(np.average(coords_arr, axis=1), (2,1))
+        rel_coords_arr = coords_arr - np.vstack(self.centroid)
+        rel_new_coords_arr = np.matmul(expansion_matrix, rel_coords_arr)
+        new_coords_arr = rel_new_coords_arr + np.vstack(self.centroid)
+        new_coords_arr = new_coords_arr.T
+        self.n_border_points = new_coords_arr.flatten()
+
+
+
+class ChoreoTriangle(DragAndResizeTriangle):
+    c_border_color = ListProperty([1, 0.5, 1, 1])
+    n_border_color = ListProperty([0.5, 1, 1, 1])
+    border_width = NumericProperty(2)
+    allow_edit = BooleanProperty(True)
+    touch_tol = NumericProperty(10)
+    angle = BoundedNumericProperty(0, min=0, max=360, errorvalue=0)
+    n_border_points = ListProperty([])
+    is_expanding = BooleanProperty(False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.mode = "Fill"
+        self.fill_color = [0,0,0,0]
+
+    def on_pos(self, instance, value):
+        self.pos = value
+        self.draw_triangle()
+    
+    def on_size(self, instance, value):
+        self.size = value
+        self.draw_triangle()
