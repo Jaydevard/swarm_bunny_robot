@@ -114,6 +114,7 @@ class StatusBarWidget(GridLayout):
 
 class BunnyWidget(Image, ButtonBehavior):
     _state = ObjectProperty()
+    v = []
     angle = NumericProperty(0)
     battery_level = BoundedNumericProperty(0, min=0, max=100)
     addr = StringProperty("")
