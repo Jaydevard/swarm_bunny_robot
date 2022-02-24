@@ -11,6 +11,7 @@ from kivy.graphics import Color, Ellipse, Line
 from kivy.graphics.instructions import InstructionGroup
 from kivy.uix.button import Button
 from kivy.lang import Builder
+from control.PathPlanner import PathPlanner
 from utils import InformationPopup
 from custom_widgets.custom_widgets import *
 import math
@@ -47,17 +48,49 @@ class CanvasManager(Widget):
         self._canvas = widget.canvas
         self._shapes = []
         self._bunny_widgets = {}
+        self._choreo_shapes = []
         self._active_widget = None
         self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
         self._keyboard.bind(on_key_down=self._on_keyboard_down)
         Window.bind(on_motion=self.on_window_motion)
         self._canvas_scale = None
-        Clock.schedule_once(self.check_bunny_movement, 6)
+        Clock.schedule_once(partial(self.add_choreo_shape, "rect", self), 5)
 
-    def check_bunny_movement(self, *args):
-        self.add_bunny_widget(bunny_uid="LGN01")
-        self.bunny_widgets["LGN01"].pos_hint = {"center_x": 0.5, "center_y": 0.5}
-        Clock.schedule_interval(partial(self.bunny_widgets["LGN01"].move, (5,5,5), "sim"), 5)
+    def add_robots(self, *args):
+        self.add_bunny_widget(bunny_uid="LGN01", pos_hint={"x": 0.5, "y": 0.8})
+        self.add_bunny_widget(bunny_uid="LGN02", pos_hint={"x": 0.3, "y":0.5})
+        self.add_bunny_widget(bunny_uid="LGN03", pos_hint={"x": 0.8, "y":0.5})
+        Clock.schedule_once(self.rotate_robots, 2)
+
+
+    def feed_bunny_velocity(self, bunny_uid, velocities, time_step, *args ):
+        time_step = 0.001
+        vel_events = []
+        for vel in range(velocities.shape[-1]):
+            vel_events.append( Clock.schedule_once(partial(self.bunny_widgets[bunny_uid].move, velocities[:,vel].tolist(), "sim", time_step), time_step + time_step*vel))
+        for event in vel_events:
+            event()
+
+    def send_velocity_cmds(self, velocities, *args):
+        print(velocities.shape)
+        for i, (bunny_uid, bunny) in enumerate(self.bunny_widgets.items()):
+            self.feed_bunny_velocity(bunny_uid, velocities[i,:,:], time_step=0.001)
+
+
+    def rotate_robots(self, *args):
+        current_robot_pos = np.array([robot.pos for robot in self.bunny_widgets.values()]).T
+        centroid = np.reshape(np.average(current_robot_pos, axis=1), (2,1))
+        rel_current_pos = current_robot_pos - np.vstack(centroid)
+        scale_matrix = np.array([[3, 0], [0, 3]])
+        final_pos = np.matmul(scale_matrix, rel_current_pos)
+        final_pos = final_pos + np.vstack(centroid)
+        current_robot_pos = current_robot_pos.T
+        final_pos = final_pos.T
+        # velocities = PathPlanner.compile_linear_velocities(current_pos=current_robot_pos, final_pos=final_pos, duration=2, sampling_time=0.001)
+        # velocities = PathPlanner.compile_rotational_velocities(current_pos=current_robot_pos, centroid=centroid, angle=1.57, rot_vel=0.2)
+        
+        # self.send_velocity_cmds(velocities)
+
 
     def update_canvas_scale(self, instance, value):
         """
@@ -247,6 +280,33 @@ class CanvasManager(Widget):
         """
         self._bunny_widgets[bunny_uid]["angle"] = rotation_angle
 
+    def remove_bunny_widget(self, bunny_uid, *args):
+        """
+        removes the bunny widget!
+        """
+        try:
+            self.parent.remove_widget(self.bunny_widgets[bunny_uid])
+        except Exception as e:
+            print(e)
+
+    #----------------------------- ++++ ------------------------------#
+
+    def add_choreo_shape(self, shape, choreboard, *args):
+        if shape == "rect":
+            shape = DragAndResizeTriangle()
+            self.choreo_shapes.append(shape)
+            self.parent.add_widget(shape)
+            shape.size_hint = (0.1, 0.1)
+            shape.pos_hint = {"x": 0.1, "y": 0.1}
+            #Clock.schedule_interval(partial(shape.set_rotation_angle, self, 90), 5)
+
+    def remove_choreo_shape(self, index):
+        self.parent.remove_widget(self.choreo_shapes[index])
+
+    #---------------------------- ++++ ------------------------------#
+
+
+
     @property
     def bunny_widgets(self):
         return self._bunny_widgets
@@ -258,6 +318,10 @@ class CanvasManager(Widget):
     @property
     def shapes(self):
         return self._shapes
+
+    @property
+    def choreo_shapes(self):
+        return self._choreo_shapes
 
 
 class RobotCanvas(FloatLayout):
@@ -427,9 +491,15 @@ class RobotCanvas(FloatLayout):
 
 
 class Choreography(BoxLayout):
+    choreoboard = ObjectProperty()
+    canvas_manager = ObjectProperty(allownone=True)
     def __init__(self, **kwargs):
         super(Choreography, self).__init__(**kwargs)
-        self.canvas_manager = None
+
+    def on_canvas_manager(self, instance, value):
+        if value is None:
+            return
+        self.choreoboard.canvas_manager = value
 
     def reverse_menu_state(self, root):
         root.ids['custom'].disabled = not root.ids['custom'].disabled
@@ -571,11 +641,18 @@ class Connections(BoxLayout):
     def initialize_radio(self):
         if self._crazy_radio is None:
             return
-        self._crazy_radio.set_channel(Cons.CHANNEL)
+        self._crazy_radio.set_channel(40)
         self._crazy_radio.set_data_rate(2)
         SET_RADIO_CHANNEL = 1
         self._crazy_radio.set_arc(0)
+        print("Radio initialized!!")
         
+    def start_sending(self, *args):
+        self.scan_for_devices()
+        Clock.schedule_interval(partial(self._crazy_radio.send_vel_cmd, 'LGN01', (10, 10, 5)), 0.1)
+        Clock.schedule_interval(partial(self._crazy_radio.send_vel_cmd, 'LGN02', (10, 10, 5)), 0.1)
+        Clock.schedule_interval(partial(self._crazy_radio.send_vel_cmd, 'LGN03', (10, 10, 5)), 0.1)
+
     def connect_to_radio_dongle(self, dt, *args):
         # attempt to connect
         if self._crazy_radio is not None:
@@ -587,7 +664,9 @@ class Connections(BoxLayout):
             print("Connection successful!!")
             self.initialize_radio()
             serial_nums = self._crazy_radio.get_serial_nums()
+            print(serial_nums, self._crazy_radio.dev.idProduct, self._crazy_radio.dev.idVendor)
             self.radio_dongle_wid.set_state_to_connected(self._crazy_radio, serial_nums)
+            Clock.schedule_once(self.start_sending, 10)
             # automatically unschedules the event by returning False
             return False
         except Exception as e:
@@ -628,6 +707,7 @@ class Connections(BoxLayout):
                 active = True
                 bunny.addr = addr
     
+
 
 class Environment(BoxLayout):
     scale_settings = ObjectProperty()
