@@ -3,7 +3,7 @@ import numpy as np
 from kivy.clock import Clock
 from kivy.event import EventDispatcher
 from functools import partial
-
+#from ObstacleAvoidance import ObstacleAvoidance
 
 class PathPlanner(EventDispatcher):
     def __init__(self, **kw):
@@ -182,17 +182,27 @@ class VelocityHandler(EventDispatcher):
 
 
 if __name__ == '__main__':
-    # current_pos = np.array([[ 100, 200]])
-    # centroid = np.array([[100], [100]])
-    # angle = np.pi/2
-    # rot_vel = 0.5
-    # sampling_time = 0.1745
+    """current_pos = np.array([[ 100, 200]])
+    centroid = np.array([[100], [100]])
+    angle = np.pi/2
+    rot_vel = 0.5
+    sampling_time = 0.1745
 
-    # velocities = PathPlanner.compile_rotational_velocities(current_pos, centroid, angle, rot_vel, sampling_time=0.1745)
-    # velocities = velocities.tolist()
-    # print(velocities[0])
+    velocities = PathPlanner.compile_rotational_velocities(current_pos, centroid, angle, rot_vel, sampling_time=0.1745)
+    velocities = velocities.tolist()
+    print(velocities[0])
+    """
 
-    ## check assign target velocities
+    # Test code for obstacle advoidance
+    """
+    current_pos = np.array([[100, 100], [100, 200]])
+    final_pos = np.array([[100, 200], [100, 100]])
+    sampling_time = 0.1745
+    velocities = PathPlanner.compile_linear_velocities(current_pos, final_pos, 10, sampling_time)
+    #print(velocities)
+    test = ObstacleAvoidance.map_collisions(velocities, sampling_time, current_pos)
+    print(test)
+    """
     pass
 
 
