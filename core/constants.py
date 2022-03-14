@@ -15,7 +15,7 @@ class Constants(Widget):
     RADIO_DATA_RATE = NumericProperty(2)  # in MBPS
     LOG_PATH = StringProperty("..//logs//")
     BUNNY_BATTERY_MIN = NumericProperty(0.1)
-    BUNNY_MAX_SPEED = NumericProperty(0.10)  # m/s
+    BUNNY_MAX_SPEED = NumericProperty(0.14)  # m/s
     RADIO_CONN_TIMEOUT = NumericProperty(10)  # ms
     BUNNY_STATES = ("formation", "roam", "charge", "idle")
     SAFETY_MARGIN = NumericProperty(0.10) # m
@@ -49,5 +49,9 @@ class Constants(Widget):
     URI = 'radio://0/30/2M/E7E7E7E711'
     CHANNEL = 40
     ADDR_PREFIX = "LGN"
+    OMEGA_MAX = 0.1 # rad/s for 1m
+    
+
+
 
 

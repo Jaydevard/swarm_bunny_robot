@@ -26,7 +26,9 @@ class Radio(Crazyradio):
 
     def send_vel_cmd(self, addr, velocity, *args):
         header = b'\x30'  # velocity command header as CRTP
-        velocity_command = header + pack('fff', velocity[0], velocity[1], velocity[2])
+        print("vel cmd called!!")
+        print(f"velocity is {velocity}")
+        velocity_command = header + pack('fff', velocity[0], velocity[1], 0)   #  velocity[2])
         self.set_address(addr)
         response = self.send_packet(velocity_command)  # this message will be received by the robot.
         if response.ack and len(response.data)==13:

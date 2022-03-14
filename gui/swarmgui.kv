@@ -120,6 +120,7 @@ BoxLayout:
                         size_hint: 1, 1
                         orientation: "vertical"
                         scale_settings: scale_settings
+                        
                         # Box Layout for Scale Settings
                         BoxLayout:
                             orientation: "vertical"
@@ -141,7 +142,7 @@ BoxLayout:
 
                             ScaleSettings:
                                 id: scale_settings
-                                size_hint: 1, 0.8
+                                size_hint: 1, 1
                                 pos_hint: {"top": 1}
 
 
@@ -158,7 +159,6 @@ BoxLayout:
                             
                             BoxLayout:
                                 orientation:"vertical"
-                                
                                 Label:
                                     id: scale_settings_label
                                     canvas.before:
@@ -174,13 +174,9 @@ BoxLayout:
                                 
                                 ShapeSettings:
                                     _root: root
-                                    size_hint: 1, 0.8
+                                    size_hint: 1,1
                                     pos_hint: {"top": 1}
-                                RecycleView:
-                                    pos: self.pos
-                                    size: self.size
-                                    Button:
-                                        text: "Check!!"
+
 
                 TabbedPanelItem:
                     text: "Connections"
