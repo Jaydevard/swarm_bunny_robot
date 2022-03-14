@@ -90,6 +90,7 @@
     canvas.after:
         PopMatrix
 
+
 <RadioDongleWidget>:
     _wifi_image: _wifi_image
     _spinner: _spinner
@@ -154,7 +155,7 @@
             pos: self.pos
             size: self.size
         Color:
-            rgba: self.border_color
+            rgba: self.fill_color
         Triangle:
             points:self.triangle_points
 
@@ -295,7 +296,7 @@
 
 
 <ShapeSettings>:
-    
+   
     _shape_label: _shape_label
     _shape_spinner: _shape_spinner
     
@@ -508,141 +509,215 @@
         input_filter: "float"
 
 
-#======= Choreography Widgets =====================#
-<SelectableBoxLayout>:
+<EffectNode>:
     orientation: "horizontal"
+    height: '30sp'
     canvas.before:
-        Color: 
-            rgba: (0, 1, .7, 1) 
+        Color:
+            rgb: self.bkg_color
         Rectangle:
-            pos: self.x + self.starting_x*self.width, self.y
-            size: (self.line_pos_x+ self.starting_x)*self.width, self.height
-        Color:
-            rgba: 0,0,0,1
-        
-        Rectangle:
-            pos: self.x + (self.line_pos_x+self.starting_x)*self.width, self.y
-            size: (1 - (self.line_pos_x + self.starting_x))*self.width, self.height
-        
-        Color:
-            rgba: 0, 0, 0, 1
-        Line:
-            points: self.x + (self.starting_x + self.line_pos_x)*self.width, self.y, self.x + (self.line_pos_x+self.starting_x)*self.width, self.y+self.height
-            width: 2
-        
-        Color:
-            rgba: self.border_color if self.selected else (0,1,1,0)
-        Line:
-            rectangle: self.x, self.y, self.width, self.height
-            width: 2
-    
+            pos: self.pos
+            size: self.size
     Label:
+        id: type_label
+        text: "[i]"+str(self.parent.effect_type)+"[/i]"
+        outline_color: self.parent.outline_color
+        markup: True
+    Label: 
+        pos_hint: {"left": 1}
+        size_hint: 0.1, 1
+        text: "[i]D: [/i]"
+        outline_color: self.parent.outline_color
+        markup: True
+
+    TextInput:
         size_hint: 0.2, 1
-        pos_hint: {"top": 1}
-        text: self.parent.text
-
-
-<AnimationSelection>:
-    viewclass: 'SelectableBoxLayout'
-    SelectableRecycleBoxLayout:
-        default_size: None, dp(40)
-        default_size_hint: 1, None
-        size_hint_y: None
-        height: self.minimum_height
-        orientation: 'vertical'
-        multiselect: False
-        touch_multiselect: True
-        spacing: 3
-
+        pos_hint: {"left": 1}
+        id: start_delay
+        text: str(self.parent.effect_duration)
+        outline_color: self.parent.outline_color
+        markup: True
+        multiline: False
+        input_filter: "float"
+        font_size: 15
+        background_color: self.parent.bkg_color
+        foreground_color: 1,1,1,1
+        on_text: self.update_effect
+        
+    Label:
+        id: effect_duration
+        pos_hint: {"left": 1}
+        size_hint: 0.1, 1
+        text: "[i]S: [/i]"
+        outline_color: self.parent.outline_color
+        markup: True
+    
+    TextInput:
+        size_hint: 0.2, 1
+        pos_hint: {"left": 1}
+        id: start_delay
+        text: str(self.parent.start_delay)
+        outline_color: self.parent.outline_color
+        markup: True
+        multiline: False
+        input_filter: "float"
+        font_size: 15
+        background_color: self.parent.bkg_color
+        foreground_color: 1,1,1,1
+    
 <ChoreoBoard>:
     orientation: "vertical"
     padding: 5
     spacing: 5
     background_color: 0,0,0,1
-    animation_selection: choreography_pane
-    GridLayout:
-        size_hint: 1, 0.2
-        cols: 4
-        Button:
-            id: square_btn
-            text: "Rectangle"
-            canvas:
-        Button:
-            id: ellipse_btn
-            text: "Ellipse"
-
-        Button:
-            id: cirle_btn
-            text: "Circle"
-
-        Button:
-            id: line_btn
-            text: "Triangle"
+    rectangle_btn: rectangle_btn
+    ellipse_btn: ellipse_btn
+    polygon_btn: polygon_btn
+    triangle_btn: triangle_btn
+    segments_layout: segments_layout
+    add_shape_to_choreography_btn: add_shape_to_choreography_btn
+    add_shape_to_canvas_btn: add_shape_to_canvas_btn
+    remove_from_canvas_btn: remove_from_canvas_btn
+    transition_choice_spn: transition_choice_spn
+    lock_effect_btn: lock_effect_btn
+    num_robots_spn: num_robots_spn
+    num_robots_input: num_robots_input
+    value_lbl: value_lbl
+    value_slider: value_slider
+    value_2_slider: value_2_slider 
+    duration_input: duration_input
+    preview_effect_btn: preview_effect_btn
+    add_effect_to_shape_btn: add_effect_to_shape_btn
+    animation_selection: animation_selection
+    simulate_btn: simulate_btn
+    delete_btn: delete_btn
+    preview_shape_effects_btn: preview_shape_effects_btn
 
     BoxLayout:
-        pos_hint: {"top": 1}
-        size_hint: 1, 0.1
+        spacing: 2
         orientation: "horizontal"
-        pos_hint: {"top":1}
-        Spinner:
-            id: choice_spinner
-            size_hint: 0.8, 1
-            text: "Rotate"
-            padding_x: 5
+        pos_hint: {"left": 1}
+        size_hint: 1, 0.6
+        
+        GridLayout:
             pos_hint: {"left": 1}
-            values: ["Rotate", "Morph"]
-            canvas.before:
-                Color: 
-                    rgb: 0,0,0
-                Rectangle:
-                    size: self.size
-                    pos: self.pos
-        Label:
-            text: "Type"
-            size_hint: 0.5, 1
-            pos_hint: {"left":1}
-            canvas.before:
-                Color:
-                    rgb: 0, 0.4, 0.8
-                Rectangle:
-                    size: self.size
-                    pos: self.pos        
+            size_hint: 1, 1
+            cols: 2
+            spacing: 2
+            Button:
+                id: rectangle_btn
+                text: "Rectangle"
+                background_normal: ''
+                background_color: 0, 0.4, 0.5, 1
+            Button:
+                id: polygon_btn
+                text: "Polygon"
+                background_normal: ''
+                background_color: 0, 0.4, 0.5, 1
+
+            Button:
+                id: ellipse_btn
+                text: "Ellipse"
+                background_normal: ''
+                background_color: 0, 0.4, 0.5, 1
+
+            Button:
+                id: triangle_btn
+                text: "Triangle"
+                background_normal: ''
+                background_color: 0, 0.4, 0.5, 1
+
+        BoxLayout:
+            size_hint: 0.1, 1
+            orientation: "horizontal"
+
+        BoxLayout:
+            pos_hint: {"top": 1}
+            size_hint: 1, 0.8
+            orientation: "vertical"
+            pos_hint: {"right": 1}
+            spacing : 3
+            BoxLayout:
+                id: segments_layout
+                pos_hint: {"top": 1}
+                orientation: "horizontal"
+            Button:
+                id: add_shape_to_choreography_btn
+                text: "[i]Add Shape to Choreography[/i]"
+                markup: True
+                pos_hint: {"top": 1}
+            Button:
+                id: add_shape_to_canvas_btn
+                text: "[i]Add Shape to Canvas[/i]"
+                markup: True
+                pos_hint: {"top": 1}
+            Button:
+                id: remove_from_canvas_btn
+                text: "Remove from Canvas"
+                markup: True
+                pos_hint: {"top":1}
+                
+    BoxLayout:
+        size_hint: 1, 0.1
+        pos_hint: {"top": 1}
+        orientation: "horizontal"
         Spinner:
-            size_hint: 0.8, 1
-            text: "shape"
-            multiline: False
-            values: ["along line", "shape"]
+            size_hint: 0.9, 1
+            id: transition_choice_spn
+            pos_hint: {"top": 1}
+            values: ["Rotate", "Morph", "Form Only", "Translate"]
+            text: "Rotate"
             sync_height: True
-            disabled: True if choice_spinner.text == "Morph" else False
+            background_normal: ''
+            background_color: [0, 0, 1, 1] if transition_choice_spn.text == "Rotate" else [1, 0, 0, 1] if transition_choice_spn.text == "Morph" else [0, 0, 0, 1]
+        Button:
+            id: lock_effect_btn
+            size_hint: 1, 1
+            lock: False
+            text: "Lock Effect"
 
     BoxLayout:
-        orientation: "horizontal"
-        size_hint: 1, 0.1
-        pos_hint: {"top": 1}
-        Button:
-            id: add_btn
-            text: "Add to canvas"
-        Button:
-            id: reset_btn
-            text: "Reset"
-    
-    BoxLayout:
         size_hint: 1, 0.1
         pos_hint: {"top": 1}
         orientation: "horizontal"
         Label:
-            padding: 20, 1
-            size_hint: 0.3, 1
-            text: "Angle" if choice_spinner.text == "Rotate" else "Expansion"
+            halign: "left"
+            size_hint: 0.4, 1
+            text: "Robots"
             canvas.before:
                 Color:
                     rgba: 0,0,0,1
                 Rectangle:
                     pos: self.pos
                     size: self.size
+        Spinner:
+            size_hint: 0.3, 1
+            id: num_robots_spn
+            pos_hint: {"top": 1}
+            values: ["All", "Minimum", "Maximum", "Custom"]
+            sync_height: True
+            text:"All"
+            canvas.before:
+            background_color: [1, 0, 1, 1] if self.text == "All" else [0.5, 0.7, 1, 1] 
+        TextInput:
+            id: num_robots_input
+            size_hint: 0.3, 1
+            pos_hint: {"left": 1}
+            input_filter: "float"
+            text: ""
+            multiline: False
+            disabled: False if num_robots_spn.text == "Custom" else True 
+  
+    BoxLayout:
+        size_hint: 1, 0.1
+        pos_hint: {"top": 1}
+        orientation: "horizontal"
         Label:
-            size_hint: 0.2, 1
-            text: str(value_slider.value)
+            id: value_lbl
+            padding: 20, 1
+            size_hint: 0.67, 1
+            markup: True
+            text: "[b]Angle:[/b]   " + str(round(value_slider.value, 2)) if transition_choice_spn.text == "Rotate" else "[b]Expansion:[/b]   " + str(round(value_slider.value, 2)) if transition_choice_spn.text == "Morph" else ""
             canvas.before:
                 Color:
                     rgba: 0,0,0,1
@@ -652,60 +727,82 @@
 
         Slider:
             id: value_slider
-            min:-360 if choice_spinner.text == "Rotate" else -1
-            max: 360 if choice_spinner.text == "Rotate" else 5
-            step: 45 if choice_spinner.text == "Rotate" else 0.5
+            name: "slider_1"
+            mode: transition_choice_spn.text
+            min:-360 if self.mode == "Rotate" else -5 if self.mode == "Morph" else -1000
+            max: 360 if self.mode == "Rotate" else 5 if self.mode == "Morph" else 1000
+            step: 5 if self.mode == "Rotate" else 0.01 if self.mode == "Morph" else 1
+            orientation: "horizontal"
+            value_track_color: 1,0,0,1
+            value_track: False if self.mode == "Form Only" else True
+            disabled: True if lock_effect_btn.text == "Lock Effect" else False
+        Slider:
+            id: value_2_slider
+            mode: transition_choice_spn.text
+            name: "slider_2"
+            disabled: True if self.mode != "Translate" else False
+            min: -2000
+            max: 2000
+            step: 50
             orientation: "horizontal"
             value_track_color: 1,0,0,1
             value_track: True
+            disabled: True if lock_effect_btn.text == "Lock Effect" else False
+
     BoxLayout:
         size_hint: 1, 0.1
         pos_hint: {"top": 1}
         orientation: "horizontal"
         Label:
-            size_hint: 0.35, 1
-            text: "Start After"
-            canvas.before:
-                Color:
-                    rgba: 0,0,0,1
-                Rectangle:
-                    size: self.size
-                    pos: self.pos
-        Label:
-            size_hint: 0.15, 1
-            text: str(start_after_slider.value)
+            halign: "left"
+            size_hint: 0.6, 1
+            text:"  Duration (min)"
             canvas.before:
                 Color:
                     rgba: 0,0,0,1
                 Rectangle:
                     pos: self.pos
                     size: self.size
-
-        Slider:
-            id: start_after_slider
-            min: 0
-            orientation: "horizontal"
-            value_track_color: 1, 0, 0, 1
-            value_track: True 
-            step: 0.5
         
-
+        TextInput:
+            id: duration_input
+            size_hint: 0.3, 1
+            pos_hint: {"left": 1}
+            input_filter:"float"
+            text: "5"
+            multiline: False
+        BoxLayout:
+            size_hint: 0.6,1
+            pos_hint: {"left": 1}
+    
+    GridLayout:
+        size_hint: 1, 0.1
+        pos_hint: {"left": 1}
+        cols: 2
+        Button:
+            id: preview_effect_btn
+            halign: "left"
+            text: "Preview Effect"
+        Button:
+            id: add_effect_to_shape_btn
+            halign: "left"
+            text: "Add Effect to Shape"
 
     BoxLayout:
         size_hint: 1, 1
         pos_hint: {"top": 1}
-        AnimationSelection:
-            id: choreography_pane
+        AnimationPanel:
+            id: animation_selection
+            size_hint: 1, 1
+            pos_hint: {"top": 1}
             canvas.before:
                 Color:
-                    rgba: 0,0,0,1
+                    rgb: 0, 0, 0
                 Rectangle:
                     pos: self.pos
                     size: self.size
-
-
     BoxLayout:
-        size_hint: 1, 0.08
+        size_hint: 1, 0.1
         pos_hint: {"top": 1}
         orientation: "horizontal"
         Button:
@@ -713,13 +810,14 @@
             text: "Simulate"
 
         Button:
+            size_hint: 0.5, 1
             id: delete_btn
-            text: "Delete"
-            on_release: choreography_pane.delete_entry(self)
+            text: "Delete "
         
         Button:
-            id: preview_btn
-            text: "Preview"
+            size_hint: 1, 1
+            id: preview_shape_effects_btn
+            text: "Preview Shape Effects"
 
 
 <ChoreoRect>:
@@ -731,25 +829,35 @@
         Rotate:
             angle: self.angle
             origin: self.center[0]-self.border_width, self.center[1] - self.border_width
+        Scale:
+            origin: self.center[0]-self.border_width, self.center[1] - self.border_width
+            x: self.scale_factor[0] 
+            y: self.scale_factor[1] 
+            z: 1
+        Translate:
+            x: self.translate_factor[0]
+            y: self.translate_factor[1]
+            z: 1
         Color:
             rgba: 0,0,0,0
         Rectangle:
             size: self.size
             pos: self.pos
-       
+
         Color:
             rgba: self.n_border_color
         Line:
             points: self.n_border_points
             width: self.border_width
-    canvas.after:
         PopMatrix
+    canvas.after:
         Color:
             rgba: self.c_border_color
         Line:
-            points: self.x-self.border_width, self.y-self.border_width, self.x-self.border_width + self.width, self.y-self.border_width, self.x+self.width-self.border_width, self.y + self.height-self.border_width, self.x-self.border_width, self.y + self.height-self.border_width, self.x-self.border_width, self.y-self.border_width
+            points: self.c_border_points
             width: self.border_width
-        
+
+
 <ChoreoPolygon>:
     # drag definitions
     drag_rectangle: self.x, self.y, self.width, self.height
@@ -760,6 +868,15 @@
         Rotate:
             angle: self.angle
             origin: self.center[0]-self.border_width, self.center[1] - self.border_width
+        Scale:
+            origin: self.center[0]-self.border_width, self.center[1] - self.border_width
+            x: self.scale_factor[0] 
+            y: self.scale_factor[1] 
+            z: 1
+        Translate:
+            x: self.translate_factor[0]
+            y: self.translate_factor[1]
+            z: 1
         Color:
             rgba: 0,0,0,0
         Rectangle:
@@ -789,8 +906,18 @@
         Rotate:
             angle: self.angle
             origin: self.center[0]-self.border_width, self.center[1] - self.border_width
+        Scale:
+            origin: self.center[0]-self.border_width, self.center[1] - self.border_width
+            x: self.scale_factor[0] 
+            y: self.scale_factor[1] 
+            z: 1
+        Translate:
+            x: self.translate_factor[0]
+            y: self.translate_factor[1]
+            z: 1
         Color:
             rgba: 0,0,0,0
+        
         Rectangle:
             pos: self.pos
             size: self.size
@@ -805,5 +932,5 @@
         Color:
             rgba: self.c_border_color
         Line:
-            points: self.line_points
+            points: self.border_points
             width: self.border_width

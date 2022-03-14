@@ -1,5 +1,4 @@
-from pickle import TRUE
-from tokenize import String
+from kivy.uix.treeview import TreeView, TreeViewNode, TreeViewLabel
 from kivy.core.text import markup
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
@@ -11,7 +10,7 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.textinput import TextInput
 from functools import partial
 from communication.radio import Radio
-from utils import InformationPopup, Scale
+from utils import InformationPopup 
 from kivy.uix.recycleview import RecycleView
 from kivy.uix.recycleview.views import RecycleDataViewBehavior
 from kivy.uix.label import Label
@@ -27,7 +26,7 @@ from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProper
 from kivy.uix.actionbar import ActionBar, ActionItem
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.gridlayout import GridLayout
-from kivy.graphics import Color, InstructionGroup, Line, Point, Rectangle
+from kivy.graphics import Color, InstructionGroup, Line, Point, Rectangle, PopMatrix, PushMatrix, Rotate, Scale, Translate, Ellipse
 from kivy.core.window import Window
 from kivy.lang import Builder
 import random
@@ -117,7 +116,6 @@ class BunnyWidget(Image, ButtonBehavior):
     v = []
     angle = NumericProperty(0)
     battery_level = BoundedNumericProperty(0, min=0, max=100)
-    addr = StringProperty("")
 
     def __init__(self, uid, **kwargs):
         super(BunnyWidget, self).__init__(**kwargs)
@@ -126,7 +124,7 @@ class BunnyWidget(Image, ButtonBehavior):
         self.addr = uid
         self.Cons = None
         self._radio = None
-        self.scale = 5.0   # 5m grid
+        self.scale = 5000   # 5m grid
         self.canvas_manager = None
         self.size_hint = (0.2/5, 0.2/5)
 
@@ -143,7 +141,7 @@ class BunnyWidget(Image, ButtonBehavior):
     
     # battery_level callback
     def on_battery_level(self, instance, value):
-        pass
+        print(f"battery level is {value}")
 
     # state callback
     def on__state(self, instance, value):
@@ -172,7 +170,11 @@ class BunnyWidget(Image, ButtonBehavior):
 
     # send command to move
     
-    def move(self, vel: list or tuple,mode="sim", *args):
+    def move(self, vel: list or tuple, 
+             time_step, 
+             mode="sim",
+             apply_scale=False, 
+             callback=None, *args):
         """
         Moves the bunny widget on the canvas based on 
         the velocity, mode and dt:
@@ -186,28 +188,32 @@ class BunnyWidget(Image, ButtonBehavior):
             raise Exception("radio not provided!!")
 
         # send command 5 times
-        count = 5
+        count = 15
         num_errors = 0
         state = None
         battery_level = None
         actual_position = None
 
+        print(vel)
         if mode == "real":
             for i in range(count): 
                 state, battery_level, actual_position = self._radio.send_vel_cmd(addr=self.addr, velocity=vel)
                 if state is None or battery_level is None or actual_position is None:
                     num_errors += 1
+                else:
+                    break
 
-            if num_errors == count:
-                raise NoAckError
+            # if num_errors == count:
+            #     raise NoAckError
 
             if actual_position is not None:
                 ## Assuming that the zero position is represented by the (0,0) position of the robot
-                self.pos_hint = {"center_x":actual_position[0] / self.scale, "center_y":actual_position[1] / self.scale}
-            
+                #self.pos_hint = {"center_x":actual_position[0] / self.scale, "center_y":actual_position[1] / self.scale}
+                pass
+
             if battery_level is not None:
                 self.battery_level = (100 / 16) *battery_level
-            
+
             if state is not None:
                 # state bit  0:3 :
                 #             init_state = 0x0,
@@ -222,28 +228,36 @@ class BunnyWidget(Image, ButtonBehavior):
                 #             debug_state = 0xF
 
                 # state bit  4:7 : battery level in 16 levels
+                state = state >> 4
                 if state in (0x0, 0x1):
                     raise BunnyNotReadyError(state)
 
                 elif state in (0x4, 0x5):
-                    self.state = "charge"
+                    self._state = "charge"
                 
                 elif state in (0x6, 0x2):
-                    self.state = "idle"
+                    self._state = "idle"
                 
                 else:
-                    self.state = "formation"
+                    self._state = "formation"
 
         elif mode == "sim":
-            print(vel[0], args[0])
-            diff_x = vel[0] * args[0]
-            diff_y = vel[1] * args[0]
+            diff_x = vel[0] * time_step
+            diff_y = vel[1] * time_step
             self.pos_hint = {}
-            self.pos =  (self.x + diff_x / self.scale, self.y + diff_y / self.scale)
+            if apply_scale:
+                self.pos =  (self.x + diff_x / self.scale, self.y + diff_y / self.scale)
+            else:
+                self.pos =  (self.x + diff_x , self.y + diff_y)
+            
             self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
                              "y": (self.y - self.parent.y) / self.parent.height}
 
-    
+        if callback:
+            print("sending callback!!")
+            callback(self.id)
+
+
     def stop(self, after: float or int =0):
         try:
             if after == 0:
@@ -1660,8 +1674,6 @@ class ShapeSettings(GridLayout):
             self._place_button.disabled = True
             self._active_widget = widget_placed
 
-    #===============================================#
-    #===============================================#
 
 class ScaleSettings(GridLayout):
     
@@ -1685,13 +1697,6 @@ class ScaleSettings(GridLayout):
 
     def update_property(self, property, value):
         setattr(self, property, value)
-
-
-class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior,
-                                 RecycleBoxLayout):
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
 
 
 
@@ -1756,40 +1761,51 @@ class SelectableBoxLayout(RecycleDataViewBehavior, BoxLayout):
             self.rv.layout_manager.clear_selection()
 
 
-class AnimationSelection(RecycleView):
-    active_index = NumericProperty()
-    canvas_manager = ObjectProperty(allownone=True)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        Clock.schedule_once(partial(self.add_entry, {'text': 'Hello!!'}), 5)
-
-    def add_entry(self, values: dict, *args):
-        self.data.append({'values': values, 
-                          'set_active_index': self.set_active_index})
-
-    def set_active_index(self, index, values):
-        self.active_index = index
-        self.active_index_values = values
-
-    def delete_entry(self, *args):
-        tmp = self.data
-        del tmp[self.active_index]
-        self.data = tmp
-        self.layout_manager.clear_selection()
-    
-    def move_up(self):
-        return
-
-
 class ChoreoBoard(BoxLayout):
     canvas_manager = ObjectProperty(allownone=True)
     animation_selection = ObjectProperty(allownone=True)
     requested_shape = StringProperty("")
+    rectangle_btn = ObjectProperty()
+    ellipse_btn = ObjectProperty()
+    polygon_btn = ObjectProperty()
+    triangle_btn = ObjectProperty()
+    
+    segments_layout = ObjectProperty()
+    segments_layout_added = BooleanProperty(False)
+    
+    add_shape_to_choreography_btn = ObjectProperty()
+    add_shape_to_canvas_btn = ObjectProperty()
+    remove_from_canvas_btn = ObjectProperty()
+    transition_choice_spn = ObjectProperty()
+    lock_effect_btn = ObjectProperty()
+    num_robots_spn = ObjectProperty()
+    num_robots_input = ObjectProperty()
+    
+    start_delay_input = ObjectProperty()
+    exit_delay_input = ObjectProperty()
+    value_slider = ObjectProperty()
+    value_2_slider = ObjectProperty()
+    duration_input = ObjectProperty()
+    preview_effect_btn = ObjectProperty()
+    add_effect_to_shape_btn = ObjectProperty()
+    animation_selection = ObjectProperty()
+    simulate_btn = ObjectProperty()
+    delete_btn = ObjectProperty()
+    preview_shape_effects_btn = ObjectProperty()
+
+    ## handlers
+    segments_text_input = ObjectProperty(None, allownone=True)
+    shape_added_to_canvas = BooleanProperty(False)
+    shape_added_to_choreography = BooleanProperty(False)
+    active_shape = ObjectProperty(None, allownone=True)    
+
+
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        pass
+        Clock.schedule_once(self.initialize, 1)
+        self.shape_btn_pressed = None
+        self.added_shapes = {}
 
     def on_canvas_manager(self, instance, value):
         if value is not None:
@@ -1801,37 +1817,275 @@ class ChoreoBoard(BoxLayout):
     def on_size(self, instance, value):
         self.size = value
 
-    
-    def initialize(self, *args):
-        pass
-
-    def add_shape_to_canvas(self, *args):
-        if self.canvas_manager is None:
+    def add_shape_to_canvas(self, btn, *args):
+        shape = None
+        if self.shape_btn_pressed is None:
             return
-        self.canvas_manager
-
-
         
-class ChoreoRect(DragAndResizeRect):
+        elif self.shape_btn_pressed.text == "Rectangle":
+            shape = ChoreoRect()
+        elif self.shape_btn_pressed.text == "Ellipse":
+            shape = ChoreoPolygon()
+        elif self.shape_btn_pressed.text == "Polygon":
+            if self.segments_text_input.text in ("0", ''):
+                InformationPopup(_type='e', _message= "Segments not specified!!").open()
+                return
+            shape = ChoreoPolygon(segments=int(self.segments_text_input.text))
+        elif self.shape_btn_pressed.text == "Triangle":
+            shape = ChoreoTriangle()
+        else:
+            return
+        self.active_shape = shape
+        self.canvas_manager.parent.add_widget(shape)
+        shape.pos_hint = {}
+        shape.center = self.canvas_manager.parent.center
+        shape.size_hint = (None, None)
+        shape.size = (self.canvas_manager.parent.size[0] / 4, self.canvas_manager.parent.size[1] / 4)
+
+        if self.added_shapes == {}:
+            shape.index = 0
+        else:
+            shape.index = len(self.added_shapes) 
+        self.added_shapes[str(shape.index)] = shape 
+        
+        ## Add rotation, angle functionalities to the shape
+        self.value_slider.bind(value=shape.rotate)
+        self.value_slider.bind(value=shape.expand)
+        self.value_2_slider.bind(value=shape.rotate)
+        self.value_2_slider.bind(value=shape.expand)
+       
+
+    def add_segments_layout(self):
+        if self.segments_layout_added:
+            return
+        segments_lbl = Label()
+        segments_lbl.markup = True
+        segments_lbl.text = "[i]Segments:[/i]"
+        self.segments_text_input = TextInput()
+        self.segments_text_input.multiline = False
+        self.segments_text_input.input_filter = "float"
+        self.segments_layout.add_widget(segments_lbl)
+        self.segments_layout.add_widget(self.segments_text_input)
+        
+        def update_canvas(self, *args):
+            segments_lbl.canvas.before.add(Color(0,0,0,1))
+            segments_lbl.canvas.before.add(Rectangle(pos=segments_lbl.pos, 
+                                                     size=segments_lbl.size))
+        Clock.schedule_once(update_canvas, 0.2)
+        self.segments_layout_added = True
+
+    def remove_segments_layout(self):
+        self.segments_layout.clear_widgets()
+        self.segments_layout_added = False
+        self.segments_text_input = None
+
+    def lock_effect(self, instance):
+        if instance.text == "Lock Effect":
+            self.active_shape.migrate_to_next_shape(effect_type=self.transition_choice_spn.text)
+            self.transition_choice_spn.disabled = True
+            instance.text = "Discard Effect"
+        elif instance.text == "Discard Effect":
+            self.active_shape.revert_to_previous_shape()
+            self.transition_choice_spn.disabled = False
+            instance.text = "Lock Effect"
+
+
+    def on_shape_btn_pressed(self, btn):
+        if self.shape_btn_pressed == btn:
+            if btn.background_color == [0, 0.4, 0.5, 1]:
+                btn.background_color = [0, 0.7, 0.4, 1]
+                self.shape_btn_pressed = btn
+            elif btn.background_color == [0, 0.7, 0.4, 1]:
+                btn.background_color = [0, 0.4, 0.5, 1]
+                self.shape_btn_pressed = None
+
+        elif self.shape_btn_pressed is None:
+            btn.background_color = [0, 0.7, 0.4, 1]
+            self.shape_btn_pressed = btn
+        
+        else:
+            btn.background_color = [0, 0.7, 0.4, 1]
+            self.shape_btn_pressed.background_color = [0, 0.4, 0.5, 1]
+            self.shape_btn_pressed = btn
+        
+        if btn.text == "Rectangle":
+            pass
+        elif btn.text == "Polygon":
+            self.add_segments_layout()
+        else:
+            self.remove_segments_layout()
+
+
+    def initialize(self, *args):
+        self.rectangle_btn.bind(on_press=self.on_shape_btn_pressed)
+        self.ellipse_btn.bind(on_press=self.on_shape_btn_pressed)
+        self.polygon_btn.bind(on_press=self.on_shape_btn_pressed)
+        self.triangle_btn.bind(on_press=self.on_shape_btn_pressed)
+        self.add_shape_to_canvas_btn.bind(on_press=self.add_shape_to_canvas)
+        self.lock_effect_btn.bind(on_release=self.lock_effect)
+
+
+class ChoreoBase:
     c_border_color = ListProperty([1, 0.5, 1, 1])
     n_border_color = ListProperty([0.5, 1, 1, 1])
-    border_width = NumericProperty(10)
+    border_width = NumericProperty(2)
     allow_edit = BooleanProperty(True)
     touch_tol = NumericProperty(10)
     angle = BoundedNumericProperty(0, min=0, max=360, errorvalue=0)
+    c_border_points = ListProperty([])
     n_border_points = ListProperty([])
+    is_expanding = BooleanProperty(False)
+    shape_type = StringProperty("")
+    scale_factor = ListProperty([1, 1])
+    translate_factor = ListProperty([1,1])
+
+    rotate_obj = ObjectProperty(None, allownone=True)
+    scale = ObjectProperty(None, allownone=True)
+    translate = ObjectProperty(None, allownone=True)
+    def __init__(self, **kwargs) -> None:
+        self.index = None
+        self.rotation_angles = []
+        self.previous_states = []
+        ## prevent overscaling when Morph is selected
+        self._first_morph_selection = True
+
+    def on_angle(self, instance, value):
+        if value >= 360:
+            angle = 0
+
+    def rotate(self, instance, value, *args):
+        """
+        Rotate the shape: angle is in degrees
+
+        """
+        if instance.mode =="Rotate":
+            self._first_morph_selection = True
+            self.angle = value
+            if self.rotate_obj is not None:
+                self.rotate_obj.angle = value
+        else:
+            return
+
+    def expand(self, instance, ratio, *args):
+        if instance.mode == "Morph":
+            if self._first_morph_selection:
+                ratio = 1
+                self._first_morph_selection = False
+            self.scale_factor = [ratio, ratio]
+            if self.scale is not None:
+                self.scale.x = ratio
+                self.scale.y = ratio
+        elif instance.mode == "Translate":
+            self._first_morph_selection = True
+            if instance.name == "slider_1":
+                self.translate_factor[0] = ratio
+                if self.translate is not None:
+                    self.translate.x = ratio
+            elif instance.name == "slider_2":
+                self.translate_factor[1] = ratio
+                if self.translate is not None:
+                    self.translate.y = ratio
+
+    def _draw_new_shape(self, angle, scale_factor, translate_factor, border_points):
+        
+        self.canvas.before.clear()
+        self.canvas.after.clear()
+        self.angle = angle
+        self.scale_factor = scale_factor
+        self.translate_factor = translate_factor
+        self.n_border_points = border_points
+
+        with self.canvas.before:
+            PushMatrix()
+            rotate = Rotate()
+            rotate.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
+            rotate.angle = angle
+            scale = Scale()
+            scale.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
+            scale.x = scale_factor[0]
+            scale.y = scale_factor[1]
+            translate = Translate()
+            translate.x = translate_factor[0]
+            translate.y = translate_factor[1]
+            color = Color(0,0,0,0)
+            rect = Rectangle(pos=self.pos, size=self.size)
+            color = Color(1, 0, 0.6)
+            line = Line(points=border_points, width=self.border_width)
+            ellipse = Ellipse(pos=self.pos, size=(self.size[0]/20, self.size[1]/20))
+            self.rotate_obj = Rotate()
+            self.rotate_obj.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
+            self.rotate_obj.angle = angle
+            self.scale = Scale()
+            self.scale.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
+            self.scale.x = self.scale_factor[0]
+            self.scale.y = self.scale_factor[1]
+            self.translate = Translate()
+            self.translate.x = self.translate_factor[0]
+            self.translate.y = self.translate_factor[1]
+            color = Color(0,0,0,0)
+            rect = Rectangle(pos=self.pos, size=self.size)
+            color = Color(*self.n_border_color)
+            ellipse = Ellipse(pos=self.pos, size=(self.size[0]/20, self.size[1]/20))
+            line = Line(points=border_points, width=self.border_width)
+            PopMatrix()    
+  
+
+    def migrate_to_next_shape(self, effect_type, *args):
+        if effect_type not in ("Rotate", "Morph", "Translate", "Form Only"):
+            raise Exception("effect type not registered!")
+        self.previous_states.append([effect_type, sum(self.rotation_angles), self.scale_factor, self.translate_factor, self.n_border_points])
+
+        self.rotation_angles.append(self.angle)
+        next_angle = sum(self.rotation_angles)
+        if next_angle >= 360:
+            next_angle -= 360
+
+        angle, scale_factor, translate_factor = next_angle, self.scale_factor, self.translate_factor
+        target_border_points = self.n_border_points
+        self._fixed = True
+        self.check_shape_pos(1,1)
+        self._draw_new_shape(angle, scale_factor, translate_factor, target_border_points)        
+
+
+    def revert_to_previous_shape(self, *args):
+        if len(self.previous_states) == 0:
+            return
+        previous_state = self.previous_states[-1]
+        previous_state[-2] = (0,0)
+        self.previous_states.pop()
+        self.rotation_angles.pop()
+        if len(self.previous_states) == 0:
+            self._fixed = False
+        self._draw_new_shape(*previous_state[1::])
+
+
+    def check_shape_pos(self, effect_type, value):
+        """
+        Checks where the shape ends up, 
+        if out of bounds, returns False
+            else: returns True
+        
+        """
+        print(self.pos)
+        print(self.parent.width, self.parent.height)
+
+
+class ChoreoRect(DragAndResizeRect, ChoreoBase):
+    shape_type = StringProperty("Rectangle")
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         Clock.schedule_once(self.initialize, 1)
 
-
     def on_pos(self, instance, value):
         self.redraw_n_line()
+        self.redraw_c_line()
         self.pos = value
+        self.expansion_ratio = 1
 
     def on_size(self, instance, value):
         self.redraw_n_line()
+        self.redraw_c_line()
         self.size = value
         self.fill_color = [0,0,0,0]
 
@@ -1841,14 +2095,15 @@ class ChoreoRect(DragAndResizeRect):
                                 self.x+self.width-self.border_width, self.y+self.height-self.border_width,
                                 self.x-self.border_width, self.y+self.height-self.border_width, 
                                 self.x-self.border_width, self.y-self.border_width]
+   
+    def redraw_c_line(self, *args):
+        self.c_border_points = [self.x-self.border_width, 
+                                self.y-self.border_width, 
+                                self.x-self.border_width + self.width, self.y-self.border_width, 
+                                self.x+self.width-self.border_width, self.y + self.height-self.border_width, self.x-self.border_width, self.y + self.height-self.border_width, 
+                                self.x-self.border_width, 
+                                self.y-self.border_width]
 
-
-    def on_angle(self, instance, value):
-        if value >= 360:
-            angle = 0
-
-    def set_rotation_angle(self, instance, value, *args):
-            self.angle = value
 
     def redraw_n_line(self, *args):
         self.n_border_points = [self.x-self.border_width, self.y-self.border_width, 
@@ -1856,40 +2111,15 @@ class ChoreoRect(DragAndResizeRect):
                                 self.x+self.width-self.border_width, self.y+self.height-self.border_width,
                                 self.x-self.border_width, self.y+self.height-self.border_width, 
                                 self.x-self.border_width, self.y-self.border_width]
+    
 
-
-class ChoreoPolygon(DragAndResizePolygon):
-    c_border_color = ListProperty([1, 0.5, 1, 1])
-    n_border_color = ListProperty([0.5, 1, 1, 1])
-    border_width = NumericProperty(2)
-    allow_edit = BooleanProperty(True)
-    touch_tol = NumericProperty(10)
-    angle = BoundedNumericProperty(0, min=0, max=360, errorvalue=0)
-    n_border_points = ListProperty([])
-    is_expanding = BooleanProperty(False)
-
+class ChoreoPolygon(DragAndResizePolygon, ChoreoBase):
+    
+    
+    shape_type = StringProperty("Polygon")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.expansion_ratio = 1
-        self.mode = "Fill"
-        self.centroid = None
-
-    def on_angle(self, instance, value):
-        if value >= 360:
-            angle = 0
-
-    def expand(self, instance, value, *args):
-        self.is_expanding = True
-        self.expansion_ratio -= 0.1
-        self.expand_points(self.expansion_ratio)
-        self.is_expanding = False
-
-
-    def set_rotation_angle(self, instance, value, *args):
-        self.angle += 5
-        # self.angle = value
-
 
     def on_pos(self, instance, value, *args):
         self.pos = value
@@ -1916,41 +2146,132 @@ class ChoreoPolygon(DragAndResizePolygon):
         self.n_border_points = points
 
 
-    def expand_points(self, ratio, *args):
-        ratio = float(ratio)
-        expansion_matrix = np.array([[ratio, 0], [0, ratio]])
-        x_points = self.line_points[0::2]
-        y_points = self.line_points[1::2]
-        coords = list(zip(x_points, y_points))
-        coords_arr = np.array(coords).T
-        self.centroid = np.reshape(np.average(coords_arr, axis=1), (2,1))
-        rel_coords_arr = coords_arr - np.vstack(self.centroid)
-        rel_new_coords_arr = np.matmul(expansion_matrix, rel_coords_arr)
-        new_coords_arr = rel_new_coords_arr + np.vstack(self.centroid)
-        new_coords_arr = new_coords_arr.T
-        self.n_border_points = new_coords_arr.flatten()
 
-
-
-class ChoreoTriangle(DragAndResizeTriangle):
-    c_border_color = ListProperty([1, 0.5, 1, 1])
-    n_border_color = ListProperty([0.5, 1, 1, 1])
-    border_width = NumericProperty(2)
-    allow_edit = BooleanProperty(True)
-    touch_tol = NumericProperty(10)
-    angle = BoundedNumericProperty(0, min=0, max=360, errorvalue=0)
-    n_border_points = ListProperty([])
-    is_expanding = BooleanProperty(False)
+class ChoreoTriangle(DragAndResizeTriangle, ChoreoBase):
+    shape_type = StringProperty("Triangle")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.mode = "Fill"
-        self.fill_color = [0,0,0,0]
+
+    def on_angle(self, instance, value):
+        if value >= 360:
+            self.angle = 0
 
     def on_pos(self, instance, value):
         self.pos = value
         self.draw_triangle()
-    
+        n_border_points = self.triangle_points + self.triangle_points[0:2]
+        self.n_border_points = n_border_points
+
     def on_size(self, instance, value):
         self.size = value
         self.draw_triangle()
+        n_border_points = self.triangle_points + self.triangle_points[0:2]
+        self.n_border_points = n_border_points
+
+ 
+
+class AnimationPanel(TreeView):
+
+    """
+    TreeView for Shapes and Effects
+    
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.root_options = {'text': 'Choreography',
+                              'font_size': 15}
+        self.canvas_manager = None    
+        Clock.schedule_once(partial(self.add_shape, "Rectangle", -1), 6)
+        Clock.schedule_once(partial(self.add_effect, "Translate", -1), 6)
+        Clock.schedule_once(partial(self.add_effect, "Morph", -1), 7)
+        Clock.schedule_once(partial(self.add_effect, "Form Only", -1), 8)
+        Clock.schedule_once(partial(self.add_effect, "Rotate", -1), 9)
+
+        self.nodes = []
+        self.selected_node_index_from_touch = None
+
+
+    def add_shape(self, shape_type, *args):
+        shape_node = ShapeNode()
+        shape_node.shape_type = shape_type
+        shape_node.text = shape_type
+        self.add_node(shape_node) 
+        self.nodes.append(shape_node)
+
+    def add_effect(self, effect_type, *args):
+        effect_node = EffectNode()
+        effect_node.effect_type = effect_type
+        node_index = self.selected_node_index_from_touch
+        if node_index is None:
+            node_index = -1
+        node = self.nodes[node_index]
+
+        self.add_node(effect_node, node)
+        pass
+
+    def on_selected_node(self, panel, instance):
+        print(instance)
+        for index, node in enumerate(self.nodes):
+            if node == instance:
+                self.selected_node_index_from_touch = index
+                break
+
+
+    def remove_node(self, node_index=-1):
+        pass
+
+
+
+class EffectNode(TreeViewNode, BoxLayout):
+    EFFECT_TYPES = ("Rotate", "Morph", "Translate", "Form Only")
+
+    effect_type = StringProperty("")
+    start_delay = NumericProperty(2)
+    effect_duration = NumericProperty(2)
+    outline_color = [0, 0.5, 0.5, 1]
+    bkg_color = [0, 0.3, 0.3]
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+    def on_effect_type(self, instance, value):
+        print("effect updated", value)
+        if value not in self.EFFECT_TYPES:
+            return
+        elif value == "Rotate":
+            self.bkg_color = [0, 0.6, 0.6]
+            self.outline_color = [0, 0.5, 0.5, 1]
+        elif value == "Morph":
+            self.bkg_color = [0, 0.5, 0.5]
+            self.outline_color = [0, 0.3, 0.3, 1]
+
+
+    def on_effect_duration(self, instance, value):
+        if value == '' or float(value) < 0:
+            InformationPopup(_message="Value not valid!!", _type='e').open()
+
+    def on_start_delay(self, instance, value):
+        if value == '' or float(value) < 0:
+            InformationPopup(_message="Value not valid!!", _type='e').open()
+
+    def get_properties(self, *args):
+        return { "type": self.effect_type, 
+                 "start_delay": self.start_delay,
+                 "duration": self.effect_duration
+               }
+
+
+class ShapeNode(TreeViewLabel):
+    shape_type = StringProperty("")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    
+    def get_properties(self, *args):
+        return {"type": self._type}
+
+
+
+
