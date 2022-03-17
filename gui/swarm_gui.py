@@ -14,6 +14,7 @@ from kivy.graphics.instructions import InstructionGroup
 from kivy.uix.button import Button
 from kivy.lang import Builder
 from control.PathPlanner import PathPlanner, VelocityHandler
+from control.shape_formation import ShapeFormation
 from utils import InformationPopup
 from custom_widgets.custom_widgets import *
 import math
@@ -55,7 +56,34 @@ class CanvasManager(Widget):
         self._canvas_scale = None
         # Clock.schedule_once(partial(self.add_choreo_shape, "rect", self), 5)
         self.vel_handler = VelocityHandler()
+        #Clock.schedule_once(self.add_bunny, 10)
+        #Clock.schedule_once(self.rotate_robots, 15)
 
+    def add_bunny(self, *args):
+        # self.add_bunny_widget(bunny_uid="LGN01")
+        # self.add_bunny_widget(bunny_uid="LGN02")
+        # self.add_bunny_widget(bunny_uid="LGN03")
+        # self.bunny_widgets["LGN01"].pos_hint = {"center_x": 0.5, "center_y": 0.5}
+        # self.bunny_widgets["LGN02"].pos_hint = {"center_x": 0, "center_y": 0.5}
+        # self.bunny_widgets["LGN03"].pos_hint = {"center_x": 0.5, "center_y": 0}
+
+    # create a shape
+        shape = {
+            "type": "Polygon",
+            "segments": 8,
+            "pos": (self.parent.pos[0] + self.parent.width/5, self.parent.pos[1] + self.parent.height/5),
+            "size": (self.parent.size[0]/2, self.parent.size[1]/2),
+            "num_robots": "Minimum"
+        }
+
+        shape_former = ShapeFormation()
+        shape_former.BUNNY_DIMENSION = (self.parent.size[0] * (0.2/5), self.parent.size[1] * (0.2/5))
+        targets = shape_former.calc_target_points_from_shape(shape)
+
+        for i, target in enumerate(targets):
+            self.add_bunny_widget(bunny_uid=f"LGN0{i+1}")
+            self.bunny_widgets[f"LGN0{i+1}"].pos_hint = {"center_x": (target[0]-self.parent.pos[0])/ self.parent.width, 
+                                                        "center_y": (target[1]-self.parent.pos[1]) / self.parent.height} 
 
     def _velocity_handler(self, bunny_uid, *args):
         print(bunny_uid + "done")
@@ -63,20 +91,22 @@ class CanvasManager(Widget):
     def rotate_robots(self, *args):
         current_robot_pos = np.array([robot.pos for robot in self.bunny_widgets.values()]).T
         centroid = np.reshape(np.average(current_robot_pos, axis=1), (2,1))
-        # centroid = [[self.parent.center[0]], [self.parent.center[1]]]
+        #centroid = [[self.parent.pos[0]], [self.parent.pos[1]]]
         current_robot_pos = current_robot_pos.T
         sampling_time = 0.01
         velocities = PathPlanner.compile_rotational_velocities(current_pos=current_robot_pos, 
                                                                centroid=centroid, 
                                                                angle=0.5*math.pi, 
-                                                               rot_vel=0.1, 
+                                                               rot_vel=0.5, 
                                                                sampling_time=sampling_time)
         velocities = velocities.tolist()
         for i, (bunny_uid, bunny) in enumerate(self.bunny_widgets.items()):
             self.vel_handler.add_velocity(bunny=bunny,
                                           velocities=velocities[i], 
                                           timestep=sampling_time,
+                                          mode="sim",
                                           callback=self._velocity_handler)
+            print(velocities[i])
             self.vel_handler.start(bunny_uid)
             pass
 
@@ -277,6 +307,7 @@ class CanvasManager(Widget):
         self._bunny_widgets[bunny_uid] = bunny
         bunny.Cons = self._parent.app.constants
         bunny.size_hint = kwargs.get("size_hint", (0.05, 0.05))
+        bunny.pos = kwargs.get("pos", self.parent.pos)
         bunny.pos_hint = kwargs.get("pos_hint", {"center_x": 0.0, "center_y": 0.0})
         bunny["state"] = kwargs.get("state", "charge")
         bunny["angle"] = kwargs.get("angle", 0)

@@ -27,6 +27,10 @@ class RadioDisconnectedError(Exception):
         super().__init__(*args)
 
 
+class ShapeTooSmallError(Exception):
+    # raised when Shape is too small
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
 
 
 

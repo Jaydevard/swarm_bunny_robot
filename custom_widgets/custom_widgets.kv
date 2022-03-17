@@ -532,9 +532,10 @@
 
     TextInput:
         size_hint: 0.2, 1
+        name: "duration_input"
         pos_hint: {"left": 1}
-        id: start_delay
-        text: str(self.parent.effect_duration)
+        id: duration_delay
+        text: "2"
         outline_color: self.parent.outline_color
         markup: True
         multiline: False
@@ -542,7 +543,7 @@
         font_size: 15
         background_color: self.parent.bkg_color
         foreground_color: 1,1,1,1
-        on_text: self.update_effect
+        on_text: self.parent.update_delay(self)
         
     Label:
         id: effect_duration
@@ -554,9 +555,10 @@
     
     TextInput:
         size_hint: 0.2, 1
+        name: "start_input"
         pos_hint: {"left": 1}
         id: start_delay
-        text: str(self.parent.start_delay)
+        text: "0"
         outline_color: self.parent.outline_color
         markup: True
         multiline: False
@@ -564,16 +566,19 @@
         font_size: 15
         background_color: self.parent.bkg_color
         foreground_color: 1,1,1,1
+        on_text: self.parent.update_delay(self)
     
 <ChoreoBoard>:
     orientation: "vertical"
     padding: 5
     spacing: 5
     background_color: 0,0,0,1
+    
     rectangle_btn: rectangle_btn
     ellipse_btn: ellipse_btn
     polygon_btn: polygon_btn
     triangle_btn: triangle_btn
+    
     segments_layout: segments_layout
     add_shape_to_choreography_btn: add_shape_to_choreography_btn
     add_shape_to_canvas_btn: add_shape_to_canvas_btn
@@ -582,10 +587,11 @@
     lock_effect_btn: lock_effect_btn
     num_robots_spn: num_robots_spn
     num_robots_input: num_robots_input
+    
     value_lbl: value_lbl
     value_slider: value_slider
     value_2_slider: value_2_slider 
-    duration_input: duration_input
+    
     preview_effect_btn: preview_effect_btn
     add_effect_to_shape_btn: add_effect_to_shape_btn
     animation_selection: animation_selection
@@ -665,7 +671,7 @@
             size_hint: 0.9, 1
             id: transition_choice_spn
             pos_hint: {"top": 1}
-            values: ["Rotate", "Morph", "Form Only", "Translate"]
+            values: ["Rotate", "Morph", "Translate"]
             text: "Rotate"
             sync_height: True
             background_normal: ''
@@ -690,13 +696,14 @@
                 Rectangle:
                     pos: self.pos
                     size: self.size
+        
         Spinner:
             size_hint: 0.3, 1
             id: num_robots_spn
             pos_hint: {"top": 1}
-            values: ["All", "Minimum", "Maximum", "Custom"]
+            values: ["Minimum", "Maximum", "Custom"]
             sync_height: True
-            text:"All"
+            text:"Maximum"
             canvas.before:
             background_color: [1, 0, 1, 1] if self.text == "All" else [0.5, 0.7, 1, 1] 
         TextInput:
@@ -729,7 +736,7 @@
             id: value_slider
             name: "slider_1"
             mode: transition_choice_spn.text
-            min:-360 if self.mode == "Rotate" else -5 if self.mode == "Morph" else -1000
+            min:-360 if self.mode == "Rotate" else 0 if self.mode == "Morph" else -1000
             max: 360 if self.mode == "Rotate" else 5 if self.mode == "Morph" else 1000
             step: 5 if self.mode == "Rotate" else 0.01 if self.mode == "Morph" else 1
             orientation: "horizontal"
@@ -749,32 +756,7 @@
             value_track: True
             disabled: True if lock_effect_btn.text == "Lock Effect" else False
 
-    BoxLayout:
-        size_hint: 1, 0.1
-        pos_hint: {"top": 1}
-        orientation: "horizontal"
-        Label:
-            halign: "left"
-            size_hint: 0.6, 1
-            text:"  Duration (min)"
-            canvas.before:
-                Color:
-                    rgba: 0,0,0,1
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-        
-        TextInput:
-            id: duration_input
-            size_hint: 0.3, 1
-            pos_hint: {"left": 1}
-            input_filter:"float"
-            text: "5"
-            multiline: False
-        BoxLayout:
-            size_hint: 0.6,1
-            pos_hint: {"left": 1}
-    
+   
     GridLayout:
         size_hint: 1, 0.1
         pos_hint: {"left": 1}

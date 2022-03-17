@@ -31,7 +31,6 @@ class PathPlanner(EventDispatcher):
         delta_x = np.array(final_pos[:, 0] - current_pos[:, 0])
         delta_y = np.array(final_pos[:, 1] - current_pos[:, 1])
         theta = np.arctan2(delta_y,delta_x)
-        print(theta)
         r = np.sqrt(delta_x**2 + delta_y**2)
         delta_t = duration
         Vx = np.round(r * np.cos(theta) / delta_t, 4)
@@ -39,8 +38,9 @@ class PathPlanner(EventDispatcher):
         Vy = np.round(r * np.sin(theta) / delta_t, 4)
         Vy = np.reshape(Vy, (-1, 1))
         vel = np.concatenate((Vx, Vy), axis=1)
+        vel = np.reshape(vel, (-1, 1, 2))
         N = int(round(delta_t / sampling_time))
-        vel_3d = np.repeat(vel[:, :, np.newaxis], N, axis=2)
+        vel_3d = np.repeat(vel, N, axis=1)
         print(vel_3d.shape)
         return vel_3d
 
@@ -77,10 +77,10 @@ class PathPlanner(EventDispatcher):
         rel_current_pos = current_pos.T - np.vstack(centroid)
         delta_x = rel_current_pos[0,:]
         delta_y = rel_current_pos[1,:]
-        # theta = np.arctan2(delta_y, delta_x)
         r = np.sqrt(delta_x ** 2 + delta_y ** 2)
         r = np.reshape(r, (1, -1))
-        final_matrix = np.zeros((current_pos.shape[0], N_points, current_pos.shape[1]))
+        final_matrix = np.zeros( (current_pos.shape[0], N_points, current_pos.shape[1]))
+        # print(final_matrix.shape)
         delta_angle = 0
         for i in range (N_points):
             R = np.array([[-math.sin(delta_angle),-math.cos(delta_angle)],[math.cos(delta_angle),-math.sin(delta_angle)]])
@@ -102,9 +102,12 @@ class PathPlanner(EventDispatcher):
             : the minimum distance between robots and the target points        
             : looping is carried out for each robot
         :return
-            target_posm chosen_robots(their position)
+            target_pos,  chosen_robots(their position)
         """
         # num of target points 
+        current_robot_pos = np.array(current_robot_pos)
+        target_pos = np.array(target_pos)
+
         num_robots = current_robot_pos.shape[0]
         num_target_points = target_pos.shape[0]
 
@@ -126,13 +129,14 @@ class PathPlanner(EventDispatcher):
         chosen_robots = np.zeros((num_target_points, 2))
 
         for index_c in range(num_target_points):
-                index_min = distance_copy[:, index_c].argmin()
-                chosen_robots[index_c, :] = current_robot_pos[index_min, :]
-                ## mask the chosen row to exclude from search
-                distance_copy = np.ma.array(distance_copy, mask=False)
-                distance_copy.mask[index_min, :] = True
-                print("argmin is", index_min)
+            index_min = distance_copy[:, index_c].argmin()
+            chosen_robots[index_c, :] = current_robot_pos[index_min, :]
+            ## mask the chosen row to exclude from search
+            distance_copy = np.ma.array(distance_copy, mask=False)
+            distance_copy.mask[index_min, :] = True
         return target_pos, chosen_robots
+
+
 
 
 class VelocityHandler(EventDispatcher):
@@ -144,8 +148,6 @@ class VelocityHandler(EventDispatcher):
    
     """
 
-
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.velocity_gen = {}
@@ -154,14 +156,15 @@ class VelocityHandler(EventDispatcher):
         self.send_cmd(bunny_uid)
 
     
-    def add_velocity(self, bunny, velocities, timestep, callback, *args):
-        self.velocity_gen[bunny.id] = [bunny, callback, timestep, (vel for vel in velocities)]
+    def add_velocity(self, bunny, velocities, timestep, mode, callback, *args):
+        self.velocity_gen[bunny.id] = [bunny, callback, timestep, mode, (vel for vel in velocities)]
 
     def send_cmd(self, bunny_uid, mode="real"):
         if self.velocity_gen[bunny_uid] is not None:
             try:
                 bunny = self.velocity_gen[bunny_uid][0]
-                timestep = self.velocity_gen[bunny_uid][-2]
+                mode = self.velocity_gen[bunny_uid][-2]
+                timestep = self.velocity_gen[bunny_uid][2]
                 vel = next(self.velocity_gen[bunny_uid][-1])
                 Clock.schedule_once(partial(bunny.move, 
                                             vel, 
@@ -179,8 +182,6 @@ class VelocityHandler(EventDispatcher):
         except:
             return
 
-
-
 if __name__ == '__main__':
     """current_pos = np.array([[ 100, 200]])
     centroid = np.array([[100], [100]])
@@ -194,15 +195,14 @@ if __name__ == '__main__':
     """
 
     # Test code for obstacle advoidance
-    """
-    current_pos = np.array([[100, 100], [100, 200]])
-    final_pos = np.array([[100, 200], [100, 100]])
-    sampling_time = 0.1745
-    velocities = PathPlanner.compile_linear_velocities(current_pos, final_pos, 10, sampling_time)
+    
+    # current_pos = np.array([[100, 100], [100, 100], [100, 200]])
+    # final_pos = np.array([[100, 200], [100, 200], [100, 100]])
+    # sampling_time = 0.1745
+    # velocities = PathPlanner.compile_linear_velocities(current_pos, final_pos, 10, sampling_time)
     #print(velocities)
-    test = ObstacleAvoidance.map_collisions(velocities, sampling_time, current_pos)
-    print(test)
-    """
+    #test = ObstacleAvoidance.map_collisions(velocities, sampling_time, current_pos)
+    #print(test)
     pass
 
 

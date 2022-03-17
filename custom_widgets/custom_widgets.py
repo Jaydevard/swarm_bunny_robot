@@ -194,7 +194,6 @@ class BunnyWidget(Image, ButtonBehavior):
         battery_level = None
         actual_position = None
 
-        print(vel)
         if mode == "real":
             for i in range(count): 
                 state, battery_level, actual_position = self._radio.send_vel_cmd(addr=self.addr, velocity=vel)
@@ -242,6 +241,7 @@ class BunnyWidget(Image, ButtonBehavior):
                     self._state = "formation"
 
         elif mode == "sim":
+            print(vel)
             diff_x = vel[0] * time_step
             diff_y = vel[1] * time_step
             self.pos_hint = {}
@@ -355,7 +355,6 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
         elif self._selected_radio == self._spinner.text:
             self._connect_button.text = "[b][i]Disconnect[i][/b]"
             self._wifi_image.source = str(self._IMAGE_PATH / "wifi_connected.png")
-
     
 
 class BunnyActionBar(ActionBar):
@@ -1700,65 +1699,66 @@ class ScaleSettings(GridLayout):
 
 
 
-class SelectableBoxLayout(RecycleDataViewBehavior, BoxLayout):
-    index = None
-    selected = BooleanProperty(False)
-    selectable = BooleanProperty(True)
-    text = StringProperty("")
-    line_pos_x = BoundedNumericProperty(0.1, min=0, max=1, errorvalue=0)
-    border_color = ListProperty([1, 0.5, 0.5, 1])
-    allow_edit = BooleanProperty(True)
-    rv = ObjectProperty()
-    values = DictProperty({})
-    set_active_index = ObjectProperty()
-    starting_x = BoundedNumericProperty(0, min=0, max=1, errorvalue=0)
+# class SelectableBoxLayout(RecycleDataViewBehavior, BoxLayout):
+#     index = None
+#     selected = BooleanProperty(False)
+#     selectable = BooleanProperty(True)
+#     text = StringProperty("")
+#     line_pos_x = BoundedNumericProperty(0.1, min=0, max=1, errorvalue=0)
+#     border_color = ListProperty([1, 0.5, 0.5, 1])
+#     allow_edit = BooleanProperty(True)
+#     rv = ObjectProperty()
+#     values = DictProperty({})
+#     set_active_index = ObjectProperty()
+#     starting_x = BoundedNumericProperty(0, min=0, max=1, errorvalue=0)
 
-    ## Custom attributes
-    angle = BoundedNumericProperty(0, min=-360, max=360, errorvalue=0)
-    duration = BoundedNumericProperty(0, min=0)
-    expansion = NumericProperty(0)
-    transition = StringProperty("")
-    transition_type = StringProperty("")
+#     ## Custom attributes
+#     angle = BoundedNumericProperty(0, min=-360, max=360, errorvalue=0)
+#     duration = BoundedNumericProperty(0, min=0)
+#     expansion = NumericProperty(0)
+#     transition = StringProperty("")
+#     transition_type = StringProperty("")
 
 
-    def on_values(self, instance, values):
-        for (key, value) in values.items():
-            setattr(self, key, value)
+#     def on_values(self, instance, values):
+#         for (key, value) in values.items():
+#             setattr(self, key, value)
 
-    def refresh_view_attrs(self, rv, index, data):
-        self.index = index
-        self.rv = rv
-        return super().refresh_view_attrs(rv, index, data)
+#     def refresh_view_attrs(self, rv, index, data):
+#         self.index = index
+#         self.rv = rv
+#         return super().refresh_view_attrs(rv, index, data)
     
-    def on_touch_down(self, touch):
+#     def on_touch_down(self, touch):
 
-        if self.collide_point(*touch.pos) and self.selectable:
-            return self.parent.select_with_touch(self.index, touch)
+#         if self.collide_point(*touch.pos) and self.selectable:
+#             return self.parent.select_with_touch(self.index, touch)
     
-        return super(SelectableBoxLayout, self).on_touch_down(touch)
+#         return super(SelectableBoxLayout, self).on_touch_down(touch)
 
-    def on_touch_move(self, touch):
-        if self.collide_point(*touch.pos) and self.selected:
-            if self.allow_edit:
-                xx, yy = self.to_widget(*touch.pos, relative=True)
-                new_line_pos_x = xx/self.width - self.starting_x
-                if new_line_pos_x > 0:
-                    self.line_pos_x = new_line_pos_x
+#     def on_touch_move(self, touch):
+#         if self.collide_point(*touch.pos) and self.selected:
+#             if self.allow_edit:
+#                 xx, yy = self.to_widget(*touch.pos, relative=True)
+#                 new_line_pos_x = xx/self.width - self.starting_x
+#                 if new_line_pos_x > 0:
+#                     self.line_pos_x = new_line_pos_x
         
-        return super().on_touch_move(touch)
+#         return super().on_touch_move(touch)
 
-    def apply_selection(self, rv, index, is_selected):
-        self.selected = is_selected
-        if is_selected:
-            ## delete an entry
-            values = {'angle': self.angle, 'transition': self.transition, }
+#     def apply_selection(self, rv, index, is_selected):
+#         self.selected = is_selected
+#         if is_selected:
+#             ## delete an entry
+#             values = {'angle': self.angle, 'transition': self.transition, }
 
-            self.set_active_index(self.index, {})
-            ## How to add to the list!!!
-            if len(rv.data) == 0:
-                rv.data.append({'_text': '5'})
-        else:
-            self.rv.layout_manager.clear_selection()
+#             self.set_active_index(self.index, {})
+#             ## How to add to the list!!!
+#             if len(rv.data) == 0:
+#                 rv.data.append({'_text': '5'})
+#         else:
+#             self.rv.layout_manager.clear_selection()
+
 
 
 class ChoreoBoard(BoxLayout):
@@ -1785,7 +1785,6 @@ class ChoreoBoard(BoxLayout):
     exit_delay_input = ObjectProperty()
     value_slider = ObjectProperty()
     value_2_slider = ObjectProperty()
-    duration_input = ObjectProperty()
     preview_effect_btn = ObjectProperty()
     add_effect_to_shape_btn = ObjectProperty()
     animation_selection = ObjectProperty()
@@ -1795,10 +1794,8 @@ class ChoreoBoard(BoxLayout):
 
     ## handlers
     segments_text_input = ObjectProperty(None, allownone=True)
-    shape_added_to_canvas = BooleanProperty(False)
     shape_added_to_choreography = BooleanProperty(False)
     active_shape = ObjectProperty(None, allownone=True)    
-
 
 
     def __init__(self, **kwargs) -> None:
@@ -1806,6 +1803,8 @@ class ChoreoBoard(BoxLayout):
         Clock.schedule_once(self.initialize, 1)
         self.shape_btn_pressed = None
         self.added_shapes = {}
+        self.active_node = None
+
 
     def on_canvas_manager(self, instance, value):
         if value is not None:
@@ -1827,10 +1826,16 @@ class ChoreoBoard(BoxLayout):
         elif self.shape_btn_pressed.text == "Ellipse":
             shape = ChoreoPolygon()
         elif self.shape_btn_pressed.text == "Polygon":
-            if self.segments_text_input.text in ("0", ''):
+            if self.segments_text_input.text in ("0", '',):
                 InformationPopup(_type='e', _message= "Segments not specified!!").open()
-                return
-            shape = ChoreoPolygon(segments=int(self.segments_text_input.text))
+            try:
+                if float(self.segments_text_input.text) < 4:
+                    InformationPopup(_type='e', _message= "Segments specified should be more than 4!!").open()
+                    return
+                shape = ChoreoPolygon(segments=int(self.segments_text_input.text))
+            except Exception as e:
+                InformationPopup(_message=e, _type='e').open()
+                return 
         elif self.shape_btn_pressed.text == "Triangle":
             shape = ChoreoTriangle()
         else:
@@ -1841,6 +1846,7 @@ class ChoreoBoard(BoxLayout):
         shape.center = self.canvas_manager.parent.center
         shape.size_hint = (None, None)
         shape.size = (self.canvas_manager.parent.size[0] / 4, self.canvas_manager.parent.size[1] / 4)
+        btn.disabled = True        
 
         if self.added_shapes == {}:
             shape.index = 0
@@ -1854,6 +1860,19 @@ class ChoreoBoard(BoxLayout):
         self.value_2_slider.bind(value=shape.rotate)
         self.value_2_slider.bind(value=shape.expand)
        
+    def remove_shape_from_canvas(self, btn):
+        if self.active_shape is None:
+            return
+        else:
+            self.canvas_manager.parent.remove_widget(self.active_shape)
+            self.add_shape_to_canvas_btn.disabled = False
+            self.active_shape = None
+            if self.lock_effect_btn.text == "Discard Effect":
+                self.lock_effect_btn.text ="Lock Effect"
+                self.transition_choice_spn.disabled = False
+            if self.shape_added_to_choreography:
+                self.add_shape_to_choreography_btn.disabled = True
+                self.active_node = self.animation_selection.nodes[-1]
 
     def add_segments_layout(self):
         if self.segments_layout_added:
@@ -1880,6 +1899,10 @@ class ChoreoBoard(BoxLayout):
         self.segments_text_input = None
 
     def lock_effect(self, instance):
+        if self.active_shape is None:
+            InformationPopup(_message="Shape should be placed on canvas", _type='e').open()
+            return
+
         if instance.text == "Lock Effect":
             self.active_shape.migrate_to_next_shape(effect_type=self.transition_choice_spn.text)
             self.transition_choice_spn.disabled = True
@@ -1888,6 +1911,21 @@ class ChoreoBoard(BoxLayout):
             self.active_shape.revert_to_previous_shape()
             self.transition_choice_spn.disabled = False
             instance.text = "Lock Effect"
+
+    def add_shape_to_choreography(self, btn):
+        if self.active_shape is None:
+            InformationPopup(_message="No shape added to canvas", _type="e").open()
+            return
+        elif not self.shape_added_to_choreography:
+            self.animation_selection.add_shape(shape_type=self.active_shape.shape_type)
+            self.shape_added_to_choreography = True
+            self.add_shape_to_choreography_btn.disabled = True
+
+
+
+    def add_effect_to_shape(self):
+        pass
+
 
 
     def on_shape_btn_pressed(self, btn):
@@ -1923,6 +1961,8 @@ class ChoreoBoard(BoxLayout):
         self.triangle_btn.bind(on_press=self.on_shape_btn_pressed)
         self.add_shape_to_canvas_btn.bind(on_press=self.add_shape_to_canvas)
         self.lock_effect_btn.bind(on_release=self.lock_effect)
+        self.remove_from_canvas_btn.bind(on_release=self.remove_shape_from_canvas)
+        self.add_shape_to_choreography_btn.bind(on_release=self.add_shape_to_choreography)
 
 
 class ChoreoBase:
@@ -1958,7 +1998,7 @@ class ChoreoBase:
         Rotate the shape: angle is in degrees
 
         """
-        if instance.mode =="Rotate":
+        if instance.mode =="Rotate" and instance.name == "slider_1":
             self._first_morph_selection = True
             self.angle = value
             if self.rotate_obj is not None:
@@ -1967,7 +2007,7 @@ class ChoreoBase:
             return
 
     def expand(self, instance, ratio, *args):
-        if instance.mode == "Morph":
+        if instance.mode == "Morph" and instance.name == "slider_1":
             if self._first_morph_selection:
                 ratio = 1
                 self._first_morph_selection = False
@@ -1987,7 +2027,6 @@ class ChoreoBase:
                     self.translate.y = ratio
 
     def _draw_new_shape(self, angle, scale_factor, translate_factor, border_points):
-        
         self.canvas.before.clear()
         self.canvas.after.clear()
         self.angle = angle
@@ -2115,7 +2154,6 @@ class ChoreoRect(DragAndResizeRect, ChoreoBase):
 
 class ChoreoPolygon(DragAndResizePolygon, ChoreoBase):
     
-    
     shape_type = StringProperty("Polygon")
 
     def __init__(self, **kwargs):
@@ -2172,22 +2210,15 @@ class ChoreoTriangle(DragAndResizeTriangle, ChoreoBase):
  
 
 class AnimationPanel(TreeView):
-
     """
     TreeView for Shapes and Effects
-    
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.root_options = {'text': 'Choreography',
                               'font_size': 15}
         self.canvas_manager = None    
-        Clock.schedule_once(partial(self.add_shape, "Rectangle", -1), 6)
-        Clock.schedule_once(partial(self.add_effect, "Translate", -1), 6)
-        Clock.schedule_once(partial(self.add_effect, "Morph", -1), 7)
-        Clock.schedule_once(partial(self.add_effect, "Form Only", -1), 8)
-        Clock.schedule_once(partial(self.add_effect, "Rotate", -1), 9)
-
         self.nodes = []
         self.selected_node_index_from_touch = None
 
@@ -2217,15 +2248,12 @@ class AnimationPanel(TreeView):
                 self.selected_node_index_from_touch = index
                 break
 
-
     def remove_node(self, node_index=-1):
         pass
 
 
-
 class EffectNode(TreeViewNode, BoxLayout):
     EFFECT_TYPES = ("Rotate", "Morph", "Translate", "Form Only")
-
     effect_type = StringProperty("")
     start_delay = NumericProperty(2)
     effect_duration = NumericProperty(2)
@@ -2247,20 +2275,35 @@ class EffectNode(TreeViewNode, BoxLayout):
             self.bkg_color = [0, 0.5, 0.5]
             self.outline_color = [0, 0.3, 0.3, 1]
 
-
     def on_effect_duration(self, instance, value):
-        if value == '' or float(value) < 0:
-            InformationPopup(_message="Value not valid!!", _type='e').open()
+        pass
 
     def on_start_delay(self, instance, value):
-        if value == '' or float(value) < 0:
-            InformationPopup(_message="Value not valid!!", _type='e').open()
+        pass
 
     def get_properties(self, *args):
         return { "type": self.effect_type, 
                  "start_delay": self.start_delay,
                  "duration": self.effect_duration
                }
+               
+    def update_delay(self, instance):
+        value = instance.text
+        name = instance.name
+        try:
+            if value != '':
+                float(value)
+        except:
+            InformationPopup(_message="Input not valid!!", _type="e").open()
+            return
+        
+        if name == "start_input":
+            if value != '' and float(value) > 0:    
+                self.start_delay = float(value)
+        
+        elif instance.name == "duration_input":
+            if instance.text != '' and float(value) > 0:
+                self.effect_duration = float(value)
 
 
 class ShapeNode(TreeViewLabel):
