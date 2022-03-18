@@ -56,8 +56,8 @@ class CanvasManager(Widget):
         self._canvas_scale = None
         # Clock.schedule_once(partial(self.add_choreo_shape, "rect", self), 5)
         self.vel_handler = VelocityHandler()
-        #Clock.schedule_once(self.add_bunny, 10)
-        #Clock.schedule_once(self.rotate_robots, 15)
+        Clock.schedule_once(self.add_bunny, 10)
+        Clock.schedule_once(self.rotate_robots, 15)
 
     def add_bunny(self, *args):
         # self.add_bunny_widget(bunny_uid="LGN01")
@@ -69,21 +69,19 @@ class CanvasManager(Widget):
 
     # create a shape
         shape = {
-            "type": "Polygon",
+            "type": "Rectangle",
             "segments": 8,
             "pos": (self.parent.pos[0] + self.parent.width/5, self.parent.pos[1] + self.parent.height/5),
-            "size": (self.parent.size[0]/2, self.parent.size[1]/2),
-            "num_robots": "Minimum"
+            "size": (400,410),
+            "num_robots": "Maximum"
         }
-
-        shape_former = ShapeFormation()
-        shape_former.BUNNY_DIMENSION = (self.parent.size[0] * (0.2/5), self.parent.size[1] * (0.2/5))
-        targets = shape_former.calc_target_points_from_shape(shape)
+        targets = ShapeFormation.calc_target_points_from_shape(shape, 
+                                                               (self.parent.size[0] * (0.2/5), self.parent.size[1] * (0.2/5)))
 
         for i, target in enumerate(targets):
             self.add_bunny_widget(bunny_uid=f"LGN0{i+1}")
             self.bunny_widgets[f"LGN0{i+1}"].pos_hint = {"center_x": (target[0]-self.parent.pos[0])/ self.parent.width, 
-                                                        "center_y": (target[1]-self.parent.pos[1]) / self.parent.height} 
+                                                         "center_y": (target[1]-self.parent.pos[1]) / self.parent.height} 
 
     def _velocity_handler(self, bunny_uid, *args):
         print(bunny_uid + "done")
@@ -108,7 +106,47 @@ class CanvasManager(Widget):
                                           callback=self._velocity_handler)
             print(velocities[i])
             self.vel_handler.start(bunny_uid)
-            pass
+
+        Clock.schedule_once(partial(self.expand_robots, 1.5), 15)
+        Clock.schedule_once(partial(self.expand_robots, 1/1.5), 25)
+        Clock.schedule_once(partial(self.translate_robots, 300, 0), 35)
+        Clock.schedule_once(partial(self.translate_robots, 0, 300), 45)
+
+
+    def expand_robots(self, factor, *args):
+        current_robot_pos = np.array([robot.pos for robot in self.bunny_widgets.values()]).T
+        centroid = np.reshape(np.average(current_robot_pos, axis=1), (2,1))
+        final_points = ShapeFormation._apply_scale_matrix(current_robot_pos.T, factor)
+        sampling_time = 0.01
+        velocities = PathPlanner.compile_linear_velocities(current_robot_pos.T, final_points, 8, sampling_time)
+        velocities = velocities.tolist()
+        self.vel_handler.clear()
+        for i, (bunny_uid, bunny) in enumerate(self.bunny_widgets.items()):
+            self.vel_handler.add_velocity(bunny=bunny,
+                                          velocities=velocities[i], 
+                                          timestep=sampling_time,
+                                          mode="sim",
+                                          callback=self._velocity_handler)
+            print(velocities[i])
+            self.vel_handler.start(bunny_uid)
+
+    def translate_robots(self, x, y, *args):
+        current_robot_pos = np.array([robot.pos for robot in self.bunny_widgets.values()]).T
+        centroid = np.reshape(np.average(current_robot_pos, axis=1), (2,1))
+        final_points = ShapeFormation._apply_translate_matrix(current_robot_pos.T, x, y)
+        sampling_time = 0.01
+        velocities = PathPlanner.compile_linear_velocities(current_robot_pos.T, final_points, 10, sampling_time)
+        velocities = velocities.tolist()
+        self.vel_handler.clear()
+        for i, (bunny_uid, bunny) in enumerate(self.bunny_widgets.items()):
+            self.vel_handler.add_velocity(bunny=bunny,
+                                          velocities=velocities[i], 
+                                          timestep=sampling_time,
+                                          mode="sim",
+                                          callback=self._velocity_handler)
+            print(velocities[i])
+            self.vel_handler.start(bunny_uid)
+
 
         #Clock.schedule_once(self.check_bunny_movement, 2)
 

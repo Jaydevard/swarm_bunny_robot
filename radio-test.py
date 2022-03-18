@@ -86,7 +86,7 @@ if __name__ == "__main__":
         for addr in address:
             print(addr)
             for i in range(1000):
-                velocity = (0, 0, 10) #cm/s, cm/s, deg/s
+                velocity = (0, 0, 00) #cm/s, cm/s, deg/s
                 #velocity = (-1.0, 0.0, 0.0)
                 state,battery_level, actual_position = send_velocity_command(radio, addr, velocity)
                 print(state)

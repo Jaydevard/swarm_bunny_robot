@@ -182,6 +182,10 @@ class VelocityHandler(EventDispatcher):
         except:
             return
 
+    def clear(self):
+        self.velocity_gen = {}
+
+
 if __name__ == '__main__':
     """current_pos = np.array([[ 100, 200]])
     centroid = np.array([[100], [100]])
