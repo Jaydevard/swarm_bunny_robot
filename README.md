@@ -7,6 +7,5 @@ The role of the GUI is to display the microcontroller state, battery level, and 
 Memorial University of Newfoundland </br>
 Grad class of 2022
 
-# Description 
-A toolbar has added to the gui to facilitate development and integration with the simulation and the user's input.
+
 
