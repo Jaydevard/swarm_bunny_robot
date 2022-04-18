@@ -4,7 +4,7 @@ The role of the GUI is to display the microcontroller state, battery level, and 
 
 
 ## CAPSTONE PROJECT 
-Memorial University of Newfoundland
+Memorial University of Newfoundland </br>
 Grad class of 2022
 
 # Description 
