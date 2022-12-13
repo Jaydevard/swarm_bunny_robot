@@ -53,7 +53,7 @@ if __name__ == "__main__":
     temp = []
 
     uri = 'radio://0/30/2M/E7E7E7E711'
-    address = ["LGN01"]
+    address = ["LGN03"]
     # while (1):
     #     vx = 0
     #     vy = 0
@@ -80,31 +80,22 @@ if __name__ == "__main__":
     #         print("space")
     #         break
 
-
     while True:
-
-        for addr in address:
-            print(addr)
-            for i in range(1000):
-                velocity = (0, 0, 00) #cm/s, cm/s, deg/s
+        for i in range(44):
+            for addr in address:
+                velocity = (14, 0, 0) #cm/s, cm/s, deg/s
                 #velocity = (-1.0, 0.0, 0.0)
                 state,battery_level, actual_position = send_velocity_command(radio, addr, velocity)
                 print(state)
                 print(actual_position)
                 print(battery_level)
-                sleep(0.01)
-            sleep(5)
-            for i in range(1000):
-                velocity = (00, 0, -10) #cm/s, cm/s, deg/s
-                #velocity = (-1.0, 0.0, 0.0)
-                state,battery_level, actual_position = send_velocity_command(radio, addr, velocity)
-                print(state)
-                print(actual_position)
-                print(battery_level)
-                sleep(0.01)
-            break
-        break
-            
+            sleep(0.1)
+        for i in range(10):
+            velocity = (0,0,0)
+            for addr in address:
+                send_velocity_command(radio, addr, velocity)    
+            sleep(0.1)
+        break       
             # state bit  0:1 :    0=idle/ready
             #                     1=running
             #                     2=charging

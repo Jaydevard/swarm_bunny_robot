@@ -1,8 +1,5 @@
 import math
 from kivy.clock import Clock
-# from communication.radio import Radio
-# from control.PathPlanner import PathPlanner 
-# from core.constants import Constants as C
 from kivy.properties import ObjectProperty, ListProperty, BooleanProperty
 from functools import partial
 import random
@@ -10,8 +7,7 @@ import numpy as np
 from operator import itemgetter
 from kivy.event import EventDispatcher
 from math import pi, cos, sin, atan2, sqrt
-
-# from core.exceptions import ShapeTooSmallError
+from core.exceptions import ShapeTooSmallError
 
 
 class ShapeFormation(EventDispatcher):
@@ -19,15 +15,16 @@ class ShapeFormation(EventDispatcher):
     Handles the simulation process from the shapes
     Top level class
     """
-
-
     def __init__(self) -> None:
         super().__init__()
 
-
     @staticmethod
-    def calc_target_points_from_shape(shape_properties, bunny_dim: tuple or list):
+    def calc_target_points_from_shape(shape_properties, 
+                                      bunny_dim: tuple or list):
+        
         """
+        TO DO: Create a configuration file so that more object specifications
+               can be added, 
         Add the shape properties: 
             {
                 "type": "Rectangle",
@@ -48,7 +45,7 @@ class ShapeFormation(EventDispatcher):
         num_robots = shape_properties["num_robots"]
 
         if shape_type not in SHAPE_TYPES:
-            raise Exception(F"Shape specified not valid, shapes should be {SHAPE_TYPES}")
+            raise Exception(f"Shape specified not valid, shapes should be {SHAPE_TYPES}")
 
         elif shape_type == "Polygon":
             segments = shape_properties["segments"]
@@ -60,7 +57,6 @@ class ShapeFormation(EventDispatcher):
             o_segments = segments
             (x0, y0) = pos
             while segments > 0:
-                print(angle_step)
                 x1 = x0 + (1 + cos((angle_step * 0) + pi/2)) * (size[0]/2)
                 y1 = y0 + (1 + sin((angle_step * 0) + pi/2)) * (size[1]/2)
                 x2 = x0 + (1 + cos((angle_step * 1) + pi/2)) * (size[0]/2)
@@ -70,9 +66,8 @@ class ShapeFormation(EventDispatcher):
                 else:
                     angle_step += 0.01745 # 1 degree increment 
             segments = int(2*pi/angle_step)
-            
             fit_adjacent_robots = False
-            
+
             if segments < o_segments: 
                 raise ShapeTooSmallError("Specified num segments cannot fit" \
                                             + "requested number of robots")
@@ -104,7 +99,7 @@ class ShapeFormation(EventDispatcher):
             return targets
 
         elif shape_type == "Ellipse":
-            segments = int((max(size)/2)*2*pi // min(BUNNY_DIMENSION))
+            segments = int((max(size)/2)*2*pi// min(BUNNY_DIMENSION))
             targets = []
             add = targets.append
             
@@ -176,7 +171,6 @@ class ShapeFormation(EventDispatcher):
                     new_d = d0 / num_robots_fit
                     next_robot_pos = ( ( x + new_d*i*cos(th)), (y + new_d*i*sin(th)) )
 
-
         elif shape_type == "Rectangle":
             width = size[0]
             height = size[1]     
@@ -189,7 +183,7 @@ class ShapeFormation(EventDispatcher):
                              (pos[0] + size[0], pos[1])
                            ]
                 elif num_robots == "Maximum":
-                    # Approach is take each side and see how much robots that we can fit
+                    # Approach is take each side and see how many robots that we can fit
                     # Obviously, minimum is 4
                     d = max(BUNNY_DIMENSION)
                     targets = [pos]
@@ -220,7 +214,35 @@ class ShapeFormation(EventDispatcher):
                     for i in range(1, num_robots_fitting, 1):                    
                         add(  (pos[0]+ new_d*i, pos[1]) )                    
                     return targets
-            
+                """
+                size = (5, 5)
+                b_w, b_h = size[0], size[1]
+
+                s_pos = (100, 150)
+                s_w, s_h = (35, 20)
+                s_type = "Rectangle"
+
+                target_pts = []
+                add = target_pts.append
+
+                # Slider Method ( Faster)
+                # First calculate maximum number of robots on the slider line
+                num_robots_on_slider = s_h // b_h
+                separation_h = b_h + (s_h % b_h) / num_robots_on_slider
+
+                # Calculate the number of columns required
+                num_of_slides = s_w // b_w
+                slide_increment = b_w + (s_w % b_w) / num_of_slides
+
+
+                print(num_of_slides, slide_increment)
+                ## main for loop
+                for pt_num_in_slider in range(num_robots_on_slider+1):
+                    add((s_pos[0], s_pos[1] + pt_num_in_slider*separation_h))
+                    for increment_num in range(1, num_of_slides+1):
+                        add((s_pos[0] + increment_num * slide_increment, 
+                            s_pos[1] + pt_num_in_slider*separation_h))  
+                """            
             else:
                 raise ShapeTooSmallError
 
@@ -232,7 +254,6 @@ class ShapeFormation(EventDispatcher):
             [x1, y1],
             [x2, y2]
         ]
-       
         """
         current_pos = np.array(current_pos).T
         print(current_pos.shape)
@@ -258,7 +279,6 @@ class ShapeFormation(EventDispatcher):
         translation = np.array([[x], 
                                 [y]])
         return (current_pos + translation).T
-
 
     @staticmethod
     def create_shape_simulation(self, node_properties):
@@ -312,9 +332,6 @@ class ShapeFormation(EventDispatcher):
                                 "y":,
                                 "start_sequence": False
                     }
-
-
-
                     }
             }
 
@@ -322,32 +339,20 @@ class ShapeFormation(EventDispatcher):
         robots_current_pos = node_properties["robots_current_pos"].values()
         shape = node_properties["shape"]
         effects = node_properties["effects"]
-
+        chosen_robots = {}
         # start compiling velocities
         # get target_points first
         try:
             target_points = self.calc_target_points_from_shape(shape)
             targets_pos, chosen_robots = PathPlanner.assign_target_points(current_robot_pos=robots_current_pos,
                                                                           target_pos=target_points)
-
         except ShapeTooSmallError:
             raise Exception
-
-
-
 
 class Simulator(EventDispatcher):
 
     def __init__(self) -> None:
         super().__init__()
-
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
 

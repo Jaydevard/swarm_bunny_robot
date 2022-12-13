@@ -45,7 +45,7 @@
             name: "speed_label"
             size_hint: 1,1
             pos_hint: {"center_x": 0.5, "center_y":0.5}
-            text:"[b]15[/b] \r[i]cm/s[/i]"
+            text:"[b]10[/b] \r[i]cm/s[/i]"
             markup: True
 
 
@@ -63,7 +63,7 @@
             name: "battery_label"
             size_hint: 1,0.2
             pos_hint: {"center_x": 0.5, "center_y":0.5}
-            text:"[b]  15%[/b]"
+            text:"[b]  85%[/b]"
             markup: True
 
     # (r:1, c:4)
@@ -134,11 +134,11 @@
 
     ActionView:
         ActionPrevious:
-            title: "Connection Status"
+            title: "Connected"
             with_previous: False
 
         ActionButton:
-            text: "Connected"
+            text: "Battery Level"
         
         ActionButton:
             text: "State"
@@ -192,7 +192,6 @@
     drag_rectangle: self.x, self.y, self.width, self.height
     drag_timeout: 10000000
     drag_distance: 0
-
     canvas.after:
         Color: 
             rgba: self.fill_color
@@ -520,9 +519,17 @@
             size: self.size
     Label:
         id: type_label
+        size_hint: 0.4, 1
         text: "[i]"+str(self.parent.effect_type)+"[/i]"
         outline_color: self.parent.outline_color
         markup: True
+    Label:
+        pos_hint: {"left": 1}
+        size_hint: 0.25, 1
+        text: "[i]"+str(self.parent.effect_value)+ "[/i]"
+        outline_color: self.parent.outline_color
+        markup: True
+    
     Label: 
         pos_hint: {"left": 1}
         size_hint: 0.1, 1
@@ -581,8 +588,7 @@
     
     segments_layout: segments_layout
     add_shape_to_choreography_btn: add_shape_to_choreography_btn
-    add_shape_to_canvas_btn: add_shape_to_canvas_btn
-    remove_from_canvas_btn: remove_from_canvas_btn
+    remove_from_choreography_btn: remove_from_choreography_btn
     transition_choice_spn: transition_choice_spn
     lock_effect_btn: lock_effect_btn
     num_robots_spn: num_robots_spn
@@ -653,13 +659,8 @@
                 markup: True
                 pos_hint: {"top": 1}
             Button:
-                id: add_shape_to_canvas_btn
-                text: "[i]Add Shape to Canvas[/i]"
-                markup: True
-                pos_hint: {"top": 1}
-            Button:
-                id: remove_from_canvas_btn
-                text: "Remove from Canvas"
+                id: remove_from_choreography_btn
+                text: "Remove from Choreography"
                 markup: True
                 pos_hint: {"top":1}
                 

@@ -86,17 +86,6 @@ BoxLayout:
         size_hint: 1, 1
         size: root.size
         pos: root.pos
-        # Splitter:
-        #     sizable_from: 'right'
-        #     strip_size: 5
-        #     min_size: 375
-        #     canvas:
-        #         Color:
-        #             rgba: 0, 0, 1, 0.2
-        #         Rectangle:
-        #             size: self.size
-        #             pos: self.pos
-        # Left Column
         BoxLayout:
             orientation: 'vertical'
             size_hint: 0.3, 1
@@ -216,7 +205,7 @@ BoxLayout:
                                 Label: 
                                     pos_hint: {"left": 1}
                                     size_hint: 0.1, 1
-                                    text: "  Click me!!"
+                                    text: "  Select"
                                     pos_hint: {"left": 1}
                                 CheckBox:
                                     pos_hint: {"left": 0.8}
@@ -248,37 +237,6 @@ BoxLayout:
                         id: choreography
                         choreoboard: choreoboard
                         orientation: 'vertical'
-                        # Button:
-                            # text: "Custom"
-                            # id: custom
-                            # size_hint: 1, 0.2
-                            # on_press: root.ids.robot_canvas.custom_mode(root)
-                            # pos_hint: {"top":1}
-                        # Button:
-                            # text: "Custom Triangle"
-                            # id: custom_triangle
-                            # size_hint: 1, 0.2
-                            # on_press: root.ids.robot_canvas.triangle_custom_mode(root)
-                            # pos_hint: {"top":1}
-                        # Button:
-                            # text: "Triangle"
-                            # id: triangle
-                            # size_hint: 1, 0.2
-                            # on_press: root.ids.robot_canvas.draw_premade_shape("triangle", root)
-                            # pos_hint: {"top":1}
-                        # Button:
-                            # text: "Square"
-                            # id: square
-                            # on_press: root.ids.robot_canvas.draw_premade_shape("square", root)
-                            # size_hint: 1, 0.2
-                            # pos_hint: {"top":1}
-                        # Button:
-                            # text: "Clear"
-                            # id: clear
-                            # disabled: True
-                            # on_press: root.ids.robot_canvas.clear_canvas(root)
-                            # size_hint: 1, 0.2
-                            # pos_hint: {"top":1}
                         ChoreoBoard:
                             id: choreoboard
                             size_hint: 1, 1
@@ -288,8 +246,6 @@ BoxLayout:
                             size_hint: 1, 0.3
                             pos_hint: {"top": 1}
                             
-        
-
         # Right Column
         BoxLayout:
             size_hint: 1, 1

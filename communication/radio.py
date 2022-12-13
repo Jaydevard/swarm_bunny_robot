@@ -1,6 +1,4 @@
 # should be built on top of Crazyradi
-from distutils import core
-from os import stat
 from cflib.drivers.crazyradio import Crazyradio
 import cflib.drivers.crazyradio as CR
 from kivy.clock import Clock
@@ -26,9 +24,10 @@ class Radio(Crazyradio):
 
     def send_vel_cmd(self, addr, velocity, *args):
         header = b'\x30'  # velocity command header as CRTP
-        print("vel cmd called!!")
-        print(f"velocity is {velocity}")
-        velocity_command = header + pack('fff', velocity[0], velocity[1], 0)   #  velocity[2])
+        if len(velocity) == 2: 
+            velocity_command = header + pack('fff', velocity[0], velocity[1], 0) 
+        else:
+            velocity_command = header + pack('fff', velocity[0], velocity[1], velocity[2])
         self.set_address(addr)
         response = self.send_packet(velocity_command)  # this message will be received by the robot.
         if response.ack and len(response.data)==13:
@@ -39,7 +38,6 @@ class Radio(Crazyradio):
             actual_position = (None, None, None)
             state = None
             battery_level = None
-        print(state, battery_level, actual_position)
 
         return state,battery_level,actual_position
 
@@ -57,8 +55,6 @@ class Radio(Crazyradio):
 
         # state bit  4:7 : battery level in 16 levels
         
-
-
 if __name__ == "__main__":
     pass
         

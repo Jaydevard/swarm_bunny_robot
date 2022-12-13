@@ -10,6 +10,7 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.textinput import TextInput
 from functools import partial
 from communication.radio import Radio
+from control.shape_formation import ShapeFormation
 from utils import InformationPopup 
 from kivy.uix.recycleview import RecycleView
 from kivy.uix.recycleview.views import RecycleDataViewBehavior
@@ -35,7 +36,6 @@ import math
 import numpy as np
 import os
 from core.exceptions import *
-from kivy.graphics.transformation import Matrix
 
 
 
@@ -134,7 +134,6 @@ class BunnyWidget(Image, ButtonBehavior):
     def update_property(self, property, value):
         setattr(self, property, value)
 
-
     def update_scale(self, value):
         self.size_hint = (self.Cons.BUNNY_DIAMETER/ float(value), self.Cons.BUNNY_DIAMETER / float(value))
         self.pos_hint = self.pos_hint
@@ -162,111 +161,6 @@ class BunnyWidget(Image, ButtonBehavior):
         elif key == "angle":
             anim = Animation(angle=value, duration=2)
             anim.start(self)
-    
-    # bunny_x - bunny_y = diff in pos(reference is center of each)
-    def __sub__(self, other):
-        if type(other) == type(self):
-            return (self.center[0] - other.center[0], self.center[1] - other.center[1])
-
-    # send command to move
-    
-    def move(self, vel: list or tuple, 
-             time_step, 
-             mode="sim",
-             apply_scale=False, 
-             callback=None, *args):
-        """
-        Moves the bunny widget on the canvas based on 
-        the velocity, mode and dt:
-        Call this function using Kivy.clock.schedule_(once|interval)
-        if mode == "sim": updates the pos_hint
-        elif mode == "real": sends the velocity cmd and updates its position
-        """
-        
-        # hard coding the scale to be 5 m
-        if self._radio is None and mode == "real":
-            raise Exception("radio not provided!!")
-
-        # send command 5 times
-        count = 15
-        num_errors = 0
-        state = None
-        battery_level = None
-        actual_position = None
-
-        if mode == "real":
-            for i in range(count): 
-                state, battery_level, actual_position = self._radio.send_vel_cmd(addr=self.addr, velocity=vel)
-                if state is None or battery_level is None or actual_position is None:
-                    num_errors += 1
-                else:
-                    break
-
-            # if num_errors == count:
-            #     raise NoAckError
-
-            if actual_position is not None:
-                ## Assuming that the zero position is represented by the (0,0) position of the robot
-                #self.pos_hint = {"center_x":actual_position[0] / self.scale, "center_y":actual_position[1] / self.scale}
-                pass
-
-            if battery_level is not None:
-                self.battery_level = (100 / 16) *battery_level
-
-            if state is not None:
-                # state bit  0:3 :
-                #             init_state = 0x0,
-                #             magcalibration_state = 0x1,
-                #             idle_state = 0x2,
-                #             run_state = 0x3,
-                #             gotocharge_state = 0x4,
-                #             charging_state = 0x5,
-                #             sleep_state = 0x6,
-                #
-                #             error_state = 0xE,
-                #             debug_state = 0xF
-
-                # state bit  4:7 : battery level in 16 levels
-                state = state >> 4
-                if state in (0x0, 0x1):
-                    raise BunnyNotReadyError(state)
-
-                elif state in (0x4, 0x5):
-                    self._state = "charge"
-                
-                elif state in (0x6, 0x2):
-                    self._state = "idle"
-                
-                else:
-                    self._state = "formation"
-
-        elif mode == "sim":
-            print(vel)
-            diff_x = vel[0] * time_step
-            diff_y = vel[1] * time_step
-            self.pos_hint = {}
-            if apply_scale:
-                self.pos =  (self.x + diff_x / self.scale, self.y + diff_y / self.scale)
-            else:
-                self.pos =  (self.x + diff_x , self.y + diff_y)
-            
-            self.pos_hint = {"x": (self.x - self.parent.x) / self.parent.width,
-                             "y": (self.y - self.parent.y) / self.parent.height}
-
-        if callback:
-            print("sending callback!!")
-            callback(self.id)
-
-
-    def stop(self, after: float or int =0):
-        try:
-            if after == 0:
-                self._radio:Radio.send_vel_cmd(self.addr, [0,0,0])
-            else:
-                Clock.schedule_once(partial(self._radio.send_vel_cmd, self.addr, (0,0,0)), after)
-        except Exception as e:
-            raise e
-
 
     @property
     def id(self):
@@ -286,17 +180,15 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
     _spinner = ObjectProperty()
     _search_button = ObjectProperty()
     _connect_button = ObjectProperty()
-
     _radio_state = BooleanProperty(False)
 
     def __init__(self, **kw):
         super().__init__(**kw)
         self._IMAGE_PATH = Path("custom_widgets/images/radio_dongle_widget")
-        self._SPINNER_INITIAL_TEXT = "[b][i]Select radio dongle[/i][/b]"
+        self._SPINNER_INITIAL_TEXT = "[b][i][/i][/b]"
+
         Clock.schedule_once(self._initialize_widgets, 1)
         self._connections_cls = None
-        self._radio_handle = None
-        self._selected_radio = None
 
     def on__radio_state(self, instance, value):
         """
@@ -318,45 +210,21 @@ class RadioDongleWidget(BoxLayout, Widget, ButtonBehavior):
     def _initialize_widgets(self, *args):
         self._wifi_image.source = str(self._IMAGE_PATH / "wifi_not_connected.png")
         self._spinner.text = self._SPINNER_INITIAL_TEXT
-        self._spinner.bind(text=self.update_on_spinner_selection)
 
-
-    def set_state_to_connected(self, radio, radio_available: list):
+    def set_state_to_connected(self, *args):
         self._wifi_image.source = str(self._IMAGE_PATH / "wifi_connected.png")
-        self._connect_button.text = "[b][i]Disonnect[i][/b]"
-        self._connect_button.disabled = False
-        self._spinner.values = radio_available
-        self._spinner.text = radio_available[0]
-        self._selected_radio = radio_available[0]
-        self._radio_handle = radio
+        self._connect_button.text = "[b][i]Connected[i][/b]"
+        self._connect_button.disabled = True
+        self._search_button.disabled = True
 
-    def set_state_to_disconnected(self):
-        self._wifi_image.source = str(self._IMAGE_PATH / "wifi_not_connected.png")
-        InformationPopup("w", "Disconnected from Radio").open()
-        self._connect_button.text = "[b][i]Connect[i][/b]"
-        self._radio_handle.close() 
-        self._radio_handle = None
-        self._selected_radio = None
-
-    def set_state_to_searching(self):
+    def set_state_to_searching(self, *args):
         self._wifi_image.source = str(self._IMAGE_PATH / "searching_wheel.gif")
+        self._connect_button.text = "[b][i]Disconnected[i][/b]"
         self._search_button.text = "[b][i]Searching[/i][/b]"
         self._search_button.disabled = True
-        print("searching!!!")
+        self._connect_button.disabled = True
 
-    def update_on_spinner_selection(self, *args):
-        if self._spinner.text == self._SPINNER_INITIAL_TEXT or self._selected_radio is None:
-            self._connect_button.text = "[b][i]Connect[i][/b]"
-            self._connect_button.disabled = True
-        
-        elif self._selected_radio != self._spinner.text:
-            self._connect_button.text = "[b][i]Connect[i][/b]"
-        
-        elif self._selected_radio == self._spinner.text:
-            self._connect_button.text = "[b][i]Disconnect[i][/b]"
-            self._wifi_image.source = str(self._IMAGE_PATH / "wifi_connected.png")
-    
-
+  
 class BunnyActionBar(ActionBar):
     # need to be completed
     connected_checkbox = ObjectProperty()
@@ -364,17 +232,35 @@ class BunnyActionBar(ActionBar):
     roam_checkbox = ObjectProperty()
     formation_checkbox = ObjectProperty()
     idle_checkbox = ObjectProperty()
+    connection_status = StringProperty("")
+    battery_level = BoundedNumericProperty(0, min=0, max=100, errorvalue=0)
+    state = StringProperty("")
 
-    def __init__(self, uid=None, **kwargs):
+    def __init__(self, bunny: BunnyWidget, **kwargs):
         super().__init__(**kwargs)
-        self._id = uid
+        self.bunny = bunny
+        self._id = bunny.id
+        Clock.schedule_interval(self.update_properties, 1)
 
     def on_pos(self, item, value):
         self.pos = value
 
+    def update_properties(self, *args):
+        try:
+            if self.bunny._radio is not None:
+                self.connection_status = "Connected"
+            else:
+                self.connection_status = "Disconnected"
+            self.battery_level = self.bunny.battery_level
+            self.state = self.bunny.state
+        except:
+            return
+
     @property
     def id(self):
         return self._id
+
+
 
 
 class DragAndResizeRect(DragBehavior, Widget):
@@ -422,7 +308,6 @@ class DragAndResizeRect(DragBehavior, Widget):
         if value:
             self.size_hint_x = self.size[0] / self.parent.width
             self.size_hint_y = self.size[1] / self.parent.height
-        
         self.lock_size = value        
 
     def set_lock_pos(self, instance, value):
@@ -527,7 +412,6 @@ class DragAndResizeRect(DragBehavior, Widget):
                 self.drag_timeout = 0
                 Window.set_system_cursor('arrow')
                 return super().on_touch_up(touch)
-            
         return super(DragAndResizeRect, self).on_touch_down(touch)
 
     def on_touch_move(self, touch):
@@ -654,7 +538,6 @@ class DragAndResizeRect(DragBehavior, Widget):
         self.size_hint = (self.width/self.parent.width, self.height/self.parent.height)
         return super(DragAndResizeRect, self).on_touch_up(touch)
 
-
 class DragAndResizePolygon(DragBehavior, Widget):
     fill_color = ListProperty([0, 1, 1, 1])
     border_color = ListProperty([1, 1, 1, 1])
@@ -677,7 +560,6 @@ class DragAndResizePolygon(DragBehavior, Widget):
         self.canvas_manager = None
         Clock.schedule_once(partial(self.on_pos, self, self.pos), 0.1)
     
-
     def __del__(self):
         Window.unbind(on_motion=self.on_window_motion)
     
@@ -741,7 +623,6 @@ class DragAndResizePolygon(DragBehavior, Widget):
     def on_size(self, instance, value):
         self.size = value
         self.draw_border()
-
 
     def draw_border(self):
         points = []
@@ -861,13 +742,11 @@ class DragAndResizePolygon(DragBehavior, Widget):
             self._touch_region = "undef"
         else:
             return super(DragAndResizePolygon, self).on_touch_up(touch)
-
         self.drag_timeout = 0
         self.pos_hint = {}
         self.pos = (self.x, self.y)
         self.size_hint = (None, None)
         is_within_shape, is_within_border = self.check_relative_touch_pos(touch, in_border=True)
-        
         if (is_within_shape or is_within_border) and self.mode != "Border" and not self.lock_pos:
             self.drag_timeout = 10000000
 
@@ -956,7 +835,6 @@ class DragAndResizePolygon(DragBehavior, Widget):
         self.size_hint = (self.width/self.parent.width, self.height/self.parent.height)
 
         return super(DragAndResizePolygon, self).on_touch_up(touch)
-
 
 class DragAndResizeTriangle(DragBehavior, Widget):
     fill_color = ListProperty([1, 0, 1, 0])
@@ -1186,8 +1064,6 @@ class DragAndResizeTriangle(DragBehavior, Widget):
 
                 self.triangle_points = self.triangle_points                
                 self.border_points = self.triangle_points + self.triangle_points[0:2]
-
-                # update the widget's position and size
                 [x0, y0] = self.triangle_points[0:2]
                 [x1, y1] = self.triangle_points[2:4]
                 [x2, y2] = self.triangle_points[4:6]
@@ -1210,6 +1086,9 @@ class DragAndResizeTriangle(DragBehavior, Widget):
                          "y": (self.y - self.parent.y) / self.parent.height}
         self.size_hint = (self.width/self.parent.width, self.height/self.parent.height)
         return super(DragAndResizeTriangle, self).on_touch_up(touch)
+
+
+
 
 
 class GridWidget(Widget):
@@ -1279,9 +1158,6 @@ class GridWidget(Widget):
 
 
     def draw_grid(self, *args):
-        
-        # x axis
-        # Adding 15 grid lines
 
         for x_pos in range(0, int(self.width), int(self.width*self.SCALE_RATIO)):
             if x_pos > self.height:
@@ -1372,14 +1248,12 @@ class GridWidget(Widget):
                 label.pos = self.vertical_lines[pos][1].points[2::]
                 label.text = f"{round(self.SCALE[0] + (pos*float(self.SCALE[0])), 3)} {self.SCALE[1]}"
 
-
 class ColorDropDown(DropDown):
     red_slider = ObjectProperty()
     green_slider = ObjectProperty()
     blue_slider = ObjectProperty()
     transparency_slider = ObjectProperty()
     none_button = ObjectProperty()
-
 
 class ShapeSettings(GridLayout):
 
@@ -1394,34 +1268,27 @@ class ShapeSettings(GridLayout):
     _shape_spinner = ObjectProperty()
     _type_label = ObjectProperty()
     _type_spinner = ObjectProperty()
-
     _fill_color_label = ObjectProperty()
     _fill_color_button = ObjectProperty()
     _fill_color_red_slider = ObjectProperty()
     _fill_color_green_slider = ObjectProperty()
     _fill_color_blue_slider = ObjectProperty()
     _fill_color_transparency = ObjectProperty()
-    
     _border_color_label = ObjectProperty()
     _border_color_button = ObjectProperty()
     _border_color_red_slider = ObjectProperty()
     _border_color_green_slider = ObjectProperty()
     _border_color_blue_slider = ObjectProperty()
     _border_color_transparency = ObjectProperty()
-
     _lock_size_label = ObjectProperty()
     _lock_size_checkbox = ObjectProperty()
-
     _lock_position_label = ObjectProperty()
     _lock_position_checkbox = ObjectProperty()
-
     _segments_label = ObjectProperty(None, allownone=True)
     _segments_text_input = ObjectProperty(None, allownone=True)
-
     _place_button = ObjectProperty()
     _new_button = ObjectProperty()
     _remove_button = ObjectProperty()
-
     _segments_label_color = ObjectProperty(None, allownone=True)
     _segments_label = ObjectProperty(None, allownone=True)
 
@@ -1675,7 +1542,6 @@ class ShapeSettings(GridLayout):
 
 
 class ScaleSettings(GridLayout):
-    
     text_input_wid = ObjectProperty()
     max_length_label = ObjectProperty()
 
@@ -1699,65 +1565,6 @@ class ScaleSettings(GridLayout):
 
 
 
-# class SelectableBoxLayout(RecycleDataViewBehavior, BoxLayout):
-#     index = None
-#     selected = BooleanProperty(False)
-#     selectable = BooleanProperty(True)
-#     text = StringProperty("")
-#     line_pos_x = BoundedNumericProperty(0.1, min=0, max=1, errorvalue=0)
-#     border_color = ListProperty([1, 0.5, 0.5, 1])
-#     allow_edit = BooleanProperty(True)
-#     rv = ObjectProperty()
-#     values = DictProperty({})
-#     set_active_index = ObjectProperty()
-#     starting_x = BoundedNumericProperty(0, min=0, max=1, errorvalue=0)
-
-#     ## Custom attributes
-#     angle = BoundedNumericProperty(0, min=-360, max=360, errorvalue=0)
-#     duration = BoundedNumericProperty(0, min=0)
-#     expansion = NumericProperty(0)
-#     transition = StringProperty("")
-#     transition_type = StringProperty("")
-
-
-#     def on_values(self, instance, values):
-#         for (key, value) in values.items():
-#             setattr(self, key, value)
-
-#     def refresh_view_attrs(self, rv, index, data):
-#         self.index = index
-#         self.rv = rv
-#         return super().refresh_view_attrs(rv, index, data)
-    
-#     def on_touch_down(self, touch):
-
-#         if self.collide_point(*touch.pos) and self.selectable:
-#             return self.parent.select_with_touch(self.index, touch)
-    
-#         return super(SelectableBoxLayout, self).on_touch_down(touch)
-
-#     def on_touch_move(self, touch):
-#         if self.collide_point(*touch.pos) and self.selected:
-#             if self.allow_edit:
-#                 xx, yy = self.to_widget(*touch.pos, relative=True)
-#                 new_line_pos_x = xx/self.width - self.starting_x
-#                 if new_line_pos_x > 0:
-#                     self.line_pos_x = new_line_pos_x
-        
-#         return super().on_touch_move(touch)
-
-#     def apply_selection(self, rv, index, is_selected):
-#         self.selected = is_selected
-#         if is_selected:
-#             ## delete an entry
-#             values = {'angle': self.angle, 'transition': self.transition, }
-
-#             self.set_active_index(self.index, {})
-#             ## How to add to the list!!!
-#             if len(rv.data) == 0:
-#                 rv.data.append({'_text': '5'})
-#         else:
-#             self.rv.layout_manager.clear_selection()
 
 
 
@@ -1769,7 +1576,7 @@ class ChoreoBoard(BoxLayout):
     ellipse_btn = ObjectProperty()
     polygon_btn = ObjectProperty()
     triangle_btn = ObjectProperty()
-    
+
     segments_layout = ObjectProperty()
     segments_layout_added = BooleanProperty(False)
     
@@ -1805,7 +1612,6 @@ class ChoreoBoard(BoxLayout):
         self.added_shapes = {}
         self.active_node = None
 
-
     def on_canvas_manager(self, instance, value):
         if value is not None:
             self.animation_selection.canvas_manager = value
@@ -1816,7 +1622,7 @@ class ChoreoBoard(BoxLayout):
     def on_size(self, instance, value):
         self.size = value
 
-    def add_shape_to_canvas(self, btn, *args):
+    def add_shape_to_canvas(self, *args):
         shape = None
         if self.shape_btn_pressed is None:
             return
@@ -1827,14 +1633,17 @@ class ChoreoBoard(BoxLayout):
             shape = ChoreoPolygon()
         elif self.shape_btn_pressed.text == "Polygon":
             if self.segments_text_input.text in ("0", '',):
-                InformationPopup(_type='e', _message= "Segments not specified!!").open()
+                InformationPopup(_type='e', 
+                                 _message= "Segments not specified!!").open()
             try:
                 if float(self.segments_text_input.text) < 4:
-                    InformationPopup(_type='e', _message= "Segments specified should be more than 4!!").open()
+                    InformationPopup(_type='e', 
+                                     _message= "Segments specified should be more than 4!!").open()
                     return
                 shape = ChoreoPolygon(segments=int(self.segments_text_input.text))
             except Exception as e:
-                InformationPopup(_message=e, _type='e').open()
+                InformationPopup(_message=e, 
+                                 _type='e').open()
                 return 
         elif self.shape_btn_pressed.text == "Triangle":
             shape = ChoreoTriangle()
@@ -1846,8 +1655,6 @@ class ChoreoBoard(BoxLayout):
         shape.center = self.canvas_manager.parent.center
         shape.size_hint = (None, None)
         shape.size = (self.canvas_manager.parent.size[0] / 4, self.canvas_manager.parent.size[1] / 4)
-        btn.disabled = True        
-
         if self.added_shapes == {}:
             shape.index = 0
         else:
@@ -1860,19 +1667,22 @@ class ChoreoBoard(BoxLayout):
         self.value_2_slider.bind(value=shape.rotate)
         self.value_2_slider.bind(value=shape.expand)
        
-    def remove_shape_from_canvas(self, btn):
+    def remove_shape_from_choreography(self, btn):
         if self.active_shape is None:
             return
         else:
             self.canvas_manager.parent.remove_widget(self.active_shape)
-            self.add_shape_to_canvas_btn.disabled = False
             self.active_shape = None
+            print(self.added_shapes)
+            
             if self.lock_effect_btn.text == "Discard Effect":
                 self.lock_effect_btn.text ="Lock Effect"
                 self.transition_choice_spn.disabled = False
+            
             if self.shape_added_to_choreography:
-                self.add_shape_to_choreography_btn.disabled = True
                 self.active_node = self.animation_selection.nodes[-1]
+                self.animation_selection.remove_node_from_treeview()
+                self.shape_added_to_choreography = False
 
     def add_segments_layout(self):
         if self.segments_layout_added:
@@ -1904,29 +1714,43 @@ class ChoreoBoard(BoxLayout):
             return
 
         if instance.text == "Lock Effect":
-            self.active_shape.migrate_to_next_shape(effect_type=self.transition_choice_spn.text)
             self.transition_choice_spn.disabled = True
             instance.text = "Discard Effect"
+        
         elif instance.text == "Discard Effect":
-            self.active_shape.revert_to_previous_shape()
+            self.active_shape.reset_transition(self.transition_choice_spn.text)
             self.transition_choice_spn.disabled = False
             instance.text = "Lock Effect"
 
+
     def add_shape_to_choreography(self, btn):
-        if self.active_shape is None:
-            InformationPopup(_message="No shape added to canvas", _type="e").open()
+        if btn.text == "[i]New Shape[/i]":
+            self._migrate_to_new_shape()
+            btn.text = "[i]Add Shape to Choreography[/i]"
             return
+        elif self.shape_btn_pressed is None:
+            InformationPopup(_type='e', _message="Shape has not been selected!!")
+
         elif not self.shape_added_to_choreography:
+            self.add_shape_to_canvas()
             self.animation_selection.add_shape(shape_type=self.active_shape.shape_type)
             self.shape_added_to_choreography = True
-            self.add_shape_to_choreography_btn.disabled = True
+            self.add_shape_to_choreography_btn.text = "[i]New Shape[/i]"
 
-
-
-    def add_effect_to_shape(self):
-        pass
-
-
+    def add_effect_to_shape(self, btn):
+        if self.active_shape is None or self.lock_effect_btn.text == "Lock Effect":
+            return
+        if self.transition_choice_spn.text == "Translate":
+            value = self.value_slider.value
+            value2 = self.value_2_slider.value
+        else:
+            value = round(self.value_slider.value, 2)
+            value2 = ""
+        self.animation_selection.add_effect(self.transition_choice_spn.text, value, value2)
+        self.active_shape.migrate_to_next_shape(effect_type=self.transition_choice_spn.text)
+        self.lock_effect_btn.text = "Lock Effect"
+        self.transition_choice_spn.disabled = False
+        #self.active_shape.revert_transition()
 
     def on_shape_btn_pressed(self, btn):
         if self.shape_btn_pressed == btn:
@@ -1953,17 +1777,21 @@ class ChoreoBoard(BoxLayout):
         else:
             self.remove_segments_layout()
 
+    def _migrate_to_new_shape(self):
+        if self.active_shape is not None:
+            self.canvas_manager.parent.remove_widget(self.active_shape)
+            self.active_shape = None
+            self.shape_added_to_choreography = False
 
     def initialize(self, *args):
         self.rectangle_btn.bind(on_press=self.on_shape_btn_pressed)
         self.ellipse_btn.bind(on_press=self.on_shape_btn_pressed)
         self.polygon_btn.bind(on_press=self.on_shape_btn_pressed)
         self.triangle_btn.bind(on_press=self.on_shape_btn_pressed)
-        self.add_shape_to_canvas_btn.bind(on_press=self.add_shape_to_canvas)
         self.lock_effect_btn.bind(on_release=self.lock_effect)
-        self.remove_from_canvas_btn.bind(on_release=self.remove_shape_from_canvas)
+        self.remove_from_choreography_btn.bind(on_release=self.remove_shape_from_choreography)
         self.add_shape_to_choreography_btn.bind(on_release=self.add_shape_to_choreography)
-
+        self.add_effect_to_shape_btn.bind(on_release=self.add_effect_to_shape)
 
 class ChoreoBase:
     c_border_color = ListProperty([1, 0.5, 1, 1])
@@ -2036,35 +1864,46 @@ class ChoreoBase:
 
         with self.canvas.before:
             PushMatrix()
-            rotate = Rotate()
-            rotate.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
-            rotate.angle = angle
+            translate = Translate()
+            translate.x = translate_factor[0]
+            translate.y = translate_factor[1]
+
             scale = Scale()
             scale.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
             scale.x = scale_factor[0]
             scale.y = scale_factor[1]
-            translate = Translate()
-            translate.x = translate_factor[0]
-            translate.y = translate_factor[1]
+            
+            rotate = Rotate()
+            rotate.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
+            rotate.angle = angle
+            
             color = Color(0,0,0,0)
             rect = Rectangle(pos=self.pos, size=self.size)
             color = Color(1, 0, 0.6)
             line = Line(points=border_points, width=self.border_width)
-            ellipse = Ellipse(pos=self.pos, size=(self.size[0]/20, self.size[1]/20))
+            ellipse = Ellipse(pos=self.pos, size=(self.size[0]/50, self.size[1]/50))
+            PopMatrix()
+            
+            PushMatrix()
+            self.translate = Translate()
+            self.translate.x = translate_factor[0]
+            self.translate.y = translate_factor[1]
+
+            self.scale = Scale()
+            self.scale.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
+            self.scale.x = scale_factor[0]
+            self.scale.y = scale_factor[1]
+
+
+
             self.rotate_obj = Rotate()
             self.rotate_obj.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
             self.rotate_obj.angle = angle
-            self.scale = Scale()
-            self.scale.origin = (self.center[0]-self.border_width, self.center[1] - self.border_width)
-            self.scale.x = self.scale_factor[0]
-            self.scale.y = self.scale_factor[1]
-            self.translate = Translate()
-            self.translate.x = self.translate_factor[0]
-            self.translate.y = self.translate_factor[1]
+
             color = Color(0,0,0,0)
             rect = Rectangle(pos=self.pos, size=self.size)
             color = Color(*self.n_border_color)
-            ellipse = Ellipse(pos=self.pos, size=(self.size[0]/20, self.size[1]/20))
+            ellipse = Ellipse(pos=self.pos, size=(self.size[0]/50, self.size[1]/50))
             line = Line(points=border_points, width=self.border_width)
             PopMatrix()    
   
@@ -2072,19 +1911,37 @@ class ChoreoBase:
     def migrate_to_next_shape(self, effect_type, *args):
         if effect_type not in ("Rotate", "Morph", "Translate", "Form Only"):
             raise Exception("effect type not registered!")
-        self.previous_states.append([effect_type, sum(self.rotation_angles), self.scale_factor, self.translate_factor, self.n_border_points])
+        self.previous_states.append([effect_type, self.angle, self.scale_factor, self.translate_factor, self.n_border_points])
 
-        self.rotation_angles.append(self.angle)
-        next_angle = sum(self.rotation_angles)
-        if next_angle >= 360:
-            next_angle -= 360
-
-        angle, scale_factor, translate_factor = next_angle, self.scale_factor, self.translate_factor
+        angle, scale_factor, translate_factor = self.angle, self.scale_factor, self.translate_factor
         target_border_points = self.n_border_points
         self._fixed = True
-        self.check_shape_pos(1,1)
         self._draw_new_shape(angle, scale_factor, translate_factor, target_border_points)        
 
+    def revert_transition(self):
+        self.previous_state = self.previous_states[-1]
+        self.rotate_obj.angle = self.previous_state[1]
+        self.scale.x, self.scale.y = self.previous_state[2][0] , self.previous_state[2][1]
+        self.translate.x, self.translate.y  = self.previous_state[3][0], self.previous_state[3][1]
+
+    def reset_transition(self, transition_type):
+        if self.previous_states == []:
+            return
+        previous_state = self.previous_states[-1]
+        if transition_type == "Morph":
+            self.scale.x = previous_state[2][0]
+            self.scale.y = previous_state[2][1]
+        
+        elif transition_type == "Rotate":
+            self.rotate_obj.angle = previous_state[1]
+        
+        elif transition_type == "Translate":
+            self.translate.x = previous_state[3][0]
+            self.translate.y = previous_state[3][1]
+
+        elif transition_type == "Scale":
+            self.scale.x = previous_state[2][0]
+            self.scale.y = previous_state[2][1]
 
     def revert_to_previous_shape(self, *args):
         if len(self.previous_states) == 0:
@@ -2096,18 +1953,6 @@ class ChoreoBase:
         if len(self.previous_states) == 0:
             self._fixed = False
         self._draw_new_shape(*previous_state[1::])
-
-
-    def check_shape_pos(self, effect_type, value):
-        """
-        Checks where the shape ends up, 
-        if out of bounds, returns False
-            else: returns True
-        
-        """
-        print(self.pos)
-        print(self.parent.width, self.parent.height)
-
 
 class ChoreoRect(DragAndResizeRect, ChoreoBase):
     shape_type = StringProperty("Rectangle")
@@ -2151,9 +1996,7 @@ class ChoreoRect(DragAndResizeRect, ChoreoBase):
                                 self.x-self.border_width, self.y+self.height-self.border_width, 
                                 self.x-self.border_width, self.y-self.border_width]
     
-
 class ChoreoPolygon(DragAndResizePolygon, ChoreoBase):
-    
     shape_type = StringProperty("Polygon")
 
     def __init__(self, **kwargs):
@@ -2183,8 +2026,6 @@ class ChoreoPolygon(DragAndResizePolygon, ChoreoBase):
         points.extend([points[0], points[1]])
         self.n_border_points = points
 
-
-
 class ChoreoTriangle(DragAndResizeTriangle, ChoreoBase):
     shape_type = StringProperty("Triangle")
 
@@ -2209,11 +2050,13 @@ class ChoreoTriangle(DragAndResizeTriangle, ChoreoBase):
 
  
 
+
+
+
 class AnimationPanel(TreeView):
     """
     TreeView for Shapes and Effects
     """
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.root_options = {'text': 'Choreography',
@@ -2221,6 +2064,9 @@ class AnimationPanel(TreeView):
         self.canvas_manager = None    
         self.nodes = []
         self.selected_node_index_from_touch = None
+
+    def simulate_effect(self):
+        pass
 
 
     def add_shape(self, shape_type, *args):
@@ -2233,6 +2079,7 @@ class AnimationPanel(TreeView):
     def add_effect(self, effect_type, *args):
         effect_node = EffectNode()
         effect_node.effect_type = effect_type
+        effect_node.effect_value = "".join(str(args))
         node_index = self.selected_node_index_from_touch
         if node_index is None:
             node_index = -1
@@ -2248,15 +2095,17 @@ class AnimationPanel(TreeView):
                 self.selected_node_index_from_touch = index
                 break
 
-    def remove_node(self, node_index=-1):
-        pass
-
+    def remove_node_from_treeview(self, node_index=-1):
+        for node in self.iterate_all_nodes():
+            if node == self.nodes[node_index]:
+                self.remove_node(node)
 
 class EffectNode(TreeViewNode, BoxLayout):
     EFFECT_TYPES = ("Rotate", "Morph", "Translate", "Form Only")
     effect_type = StringProperty("")
     start_delay = NumericProperty(2)
     effect_duration = NumericProperty(2)
+    effect_value = ObjectProperty(allownone=True)
     outline_color = [0, 0.5, 0.5, 1]
     bkg_color = [0, 0.3, 0.3]
 
@@ -2305,7 +2154,6 @@ class EffectNode(TreeViewNode, BoxLayout):
             if instance.text != '' and float(value) > 0:
                 self.effect_duration = float(value)
 
-
 class ShapeNode(TreeViewLabel):
     shape_type = StringProperty("")
 
@@ -2314,7 +2162,4 @@ class ShapeNode(TreeViewLabel):
     
     def get_properties(self, *args):
         return {"type": self._type}
-
-
-
 

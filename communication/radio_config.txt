@@ -1,0 +1,22 @@
+
+## Radio config file
+## Date: November 7 2022
+# ============================================#
+CHANNEL = 40
+DATA_RATE = 2
+ARC = 0
+ADDR_PREFIX = "LGN"
+
+# Radio Checking Interval
+RADIO_CHECK_INTERVAL = 2
+
+# =================COMM LINK==================#
+# LINK Transfer Rate is in per 100ms
+# RETRY RATE is in per 100 ms
+
+COMM_LINK_TRANSFER_RATE = 100
+
+
+# =============================================# 
+
+
